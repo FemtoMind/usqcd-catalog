@@ -196,12 +196,14 @@ work/                   generated per-ensemble JSON (gitignored)
       (9.3 TB), declared 2026-10-19 and round-trip verified (0 diffs)
 - [x] cl3_16_48_b6p1_m0p2450: 8 streams, each one htar archive of 4010 configs in a shared
       directory (3.3 TB), declared 2026-10-19 and round-trip verified (0 diffs)
-- [ ] cl3_24_48_b6p1_m0p2450: 16 streams, 16218 configs, 5.7 TB; TOML and records.json
-      built, declare pending
-- [ ] cl3_48_64_b6p1_m0p2450: no gauge configurations under clover-iso on NERSC HPSS
-      (the three directories hold only 2012 analysis output and sparse propagators);
-      location of the configs to be established before cataloging
-- [ ] remaining cl3 ensembles (`ensembles/*.toml`, one per ensemble, streams grouped)
+- [x] cl3_24_48_b6p1_m0p2450: 16 streams, 16218 configs, 5.7 TB, declared 2026-10-19
+- [x] cl3_30_60_b6p2_m0p2200 / m0p2250, cl3_36_64_b6p3_m0p2050 / m0p2170,
+      cl3_48_96_b6p5_m0p1788: single streams, 520 to 816 configs each, declared
+      2026-10-19 and round-trip verified (0 diffs)
+- [ ] cl3_48_64_b6p1_m0p2450 and cl3_48_64_b6p3_m0p2050_b: no gauge configurations under
+      clover-iso on NERSC HPSS (only analysis output and sparse propagators); the
+      location of the configs is being asked around before cataloging
+- [x] all other cl3 ensembles (9 datasets, ~37k records, ~32 TB)
 - [ ] cl21 ensembles
 - [ ] sparse propagators and correlators (new `lqcd.artifact.kind` values and
       `lqcd.parent.*` provenance back to the gauge configs)
