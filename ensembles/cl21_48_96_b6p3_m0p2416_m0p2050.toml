@@ -1,0 +1,113 @@
+# Ensemble description: cl21_48_96_b6p3_m0p2416_m0p2050
+#
+# Nf=2+1 stout-clover ("isoClover"), 48^3 x 96, beta = 6.3, m_l = -0.2416,
+# m_s = -0.2050. Eight streams on NERSC HPSS:
+#   main                     clover-iso/cl21_48_96_b6p3_m0p2416_m0p2050
+#   1000, 1200, 2420         ...-1000 etc.: branched from the main stream at
+#                            that trajectory (directory naming convention,
+#                            confirmed for the sibling cl21_64_192 -2800 stream
+#                            by the copied cfg_2800 kept in its directory)
+#   djm-1 .. djm-4           ...-djm-N: origin not recorded here
+# The main stream's original configurations were generated at JLab; this
+# ensemble is also catalogued by JLab with their own tooling, and these
+# records will be reconciled with that catalog. Keys to match on:
+# lqcd.storage.path, (lqcd.ensemble, lqcd.stream, lqcd.trajectory).
+#
+# Action numbers verbatim from the Chroma input embedded in the LIME header
+# of cfg_1000 of the -1000 stream (chroma 3.43.0; read with
+# scripts/lime_hmc_params.py) and from the NPLQCD restart template
+# /pscratch/sd/w/wdetmold/gauge_gen/cl21_48_96_b6p3_m0p2416_m0p2050_restart_template.xml;
+# the two agree. Integrator step counts and the save interval differ between
+# streams (template: n_steps 20, SaveInterval 5; -1000 header: 12 and 2) and
+# are therefore not stated at ensemble level.
+
+[ensemble]
+name = "cl21_48_96_b6p3_m0p2416_m0p2050"
+display_name = "cl21 48^3x96 beta=6.3 ml=-0.2416 ms=-0.2050"
+collaboration = "NPLQCD"
+generated_by = "JLab isoClover program (main stream); NPLQCD (W. Detmold) for the branched streams"
+code = "Chroma hmc 3.43+, QUDA"
+storage = "nersc_hpss"
+description = """\
+Nf=2+1 stout-smeared clover Wilson fermion ensemble (JLab isoClover action) \
+on a 48^3 x 96 lattice with the tree-level Luscher-Weisz gauge action at \
+beta = 6.3, bare light-quark mass -0.2416 and strange-quark mass -0.2050. \
+The main stream originates from the JLab isoClover program; NPLQCD extended \
+it with streams branched from main at trajectories 1000, 1200 and 2420 and \
+four further streams djm-1 to djm-4, all with identical action parameters and \
+per-stream trajectory numbering. Configurations are in SciDAC/ILDG LIME \
+format, one file per configuration, HMC trajectory length tau0 = 1.414, \
+force-gradient integrator with Hasenbusch preconditioning. Copies on NERSC \
+HPSS; the same ensemble is catalogued independently by JLab."""
+
+[lqcd]
+nflavors = 3
+flavor_structure = "2+1 (m_u = m_d < m_s)"
+beta = 6.3
+Nx = 48
+Ny = 48
+Nz = 48
+Nt = 96
+volume = [48, 48, 48, 96]
+
+[lqcd.action]
+gauge = "LW_TREE"
+gauge_u0 = 0.84570646270714
+fermion = "clover"
+fermion_state = "STOUT_FERM_STATE"
+csw = 1.20536588031793
+anisotropic = false
+fermion_bc = "1 1 1 -1"
+
+[lqcd.mass]
+light = -0.2416
+strange = -0.2050
+
+[lqcd.smearing]
+type = "stout"
+rho = 0.125
+n_smear = 1
+
+[lqcd.hmc]
+tau0 = 1.414
+integrator = "LCM_STS_FORCE_GRAD"
+hasenbusch_masses = [-0.2400, -0.2320, -0.2180, -0.1870]
+rational_lower_min = 0.0007
+rational_upper_max = 32
+
+[streams.main]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050"
+[streams.1000]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050-1000"
+parent_stream = "main"
+parent_trajectory = 1000
+[streams.1200]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050-1200"
+parent_stream = "main"
+parent_trajectory = 1200
+[streams.2420]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050-2420"
+parent_stream = "main"
+parent_trajectory = 2420
+[streams."djm-1"]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050-djm-1"
+[streams."djm-2"]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050-djm-2"
+[streams."djm-3"]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050-djm-3"
+[streams."djm-4"]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050-djm-4"
+
+# Only the configurations. Sparse propagators (sparseprops-t*), correlators,
+# frontier/ products and xml-* measurement inputs are derived data for later.
+[[files]]
+pattern = '^cfgs/.+_cfg_(?P<trajectory>\d+)\.lime$'
+kind = "gauge_config"
+format = "application/x-lime"
+description = "Gauge configuration in SciDAC/ILDG LIME format, Chroma HMC input embedded in the header."
+
+[[files]]
+pattern = '^cfgs/.+_restart_(?P<trajectory>\d+)\.xml$'
+kind = "hmc_input"
+format = "application/xml"
+description = "Chroma HMC restart input XML used to continue the stream from this configuration (full action, integrator and RNG seed)."

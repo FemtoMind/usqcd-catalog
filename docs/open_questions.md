@@ -49,7 +49,15 @@ convention hardens. Comments as GitHub issues are easiest.
    an acceptable workflow for JLab/BNL groups, or do we need to ask AmSC for
    federated identities / per-group roles (`lqcd_jlab_write`, ...)?
 
-10. **Derived artifacts.** For propagators and correlators the plan is
+10. **Reconciliation with the JLab catalog.** The cl21 isoClover ensembles
+    are catalogued independently by JLab with their own tooling. Our records
+    carry three things a reconciliation can key on: `lqcd.storage.path` (the
+    NERSC HPSS path), the triple (`lqcd.ensemble`, `lqcd.stream`,
+    `lqcd.trajectory`), and, once checksums exist, `checksums`. Which of
+    these does the JLab side have, and should the merged record keep both
+    catalogs' names as aliases (`lqcd.alias.jlab = ...`) rather than pick one?
+
+11. **Derived artifacts.** For propagators and correlators the plan is
    `lqcd.parent.kind/ensemble/stream/trajectory` (+ `sha256` once we have
    checksums) pointing at the gauge config. Kind-specific fields proposed:
    `lqcd.prop.*` (source type, smearing, mass, solver tolerance, sparsening),

@@ -86,6 +86,8 @@ convention of the earlier NPLQCD eigenvector demo where one existed.
 | `lqcd.hmc.n_warmup_updates` | int | `100` |
 | `lqcd.hmc.rational_lower_min`, `.rational_upper_max` | float | `0.003, 32` |
 | `lqcd.hmc.code_version` | str | |
+| `lqcd.hmc.hasenbusch_masses` | float[] | Hasenbusch preconditioner masses, cl21 ensembles (`[-0.2400, -0.2320, -0.2180, -0.1870]`) |
+| `lqcd.flavor_structure` for 2+1 | str | `"2+1 (m_u = m_d < m_s)"` with `lqcd.nflavors = 3`, `lqcd.mass.light` and `lqcd.mass.strange` different |
 
 ## File record (one per stored file)
 

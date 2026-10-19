@@ -1,0 +1,80 @@
+# Ensemble description: cl21_64_192_b6p5_m0p2080_m0p1788
+#
+# Nf=2+1 stout-clover, 64^3 x 192, beta = 6.5, m_l = -0.2080, m_s = -0.1788.
+# Two streams on NERSC HPSS: main, and -2800 branched from main at trajectory
+# 2800 (its directory keeps a copy of the main stream's cfg_2800 as the start;
+# that copy is excluded below so the configuration is catalogued once, under
+# main). Numbers verbatim from the Chroma input embedded in the LIME header of
+# the main stream's cfg_1000 (chroma 3.44.0; scripts/lime_hmc_params.py).
+# Also catalogued by JLab; records to be reconciled.
+
+[ensemble]
+name = "cl21_64_192_b6p5_m0p2080_m0p1788"
+display_name = "cl21 64^3x192 beta=6.5 ml=-0.2080 ms=-0.1788"
+collaboration = "NPLQCD"
+generated_by = "NPLQCD (W. Detmold) / JLab isoClover program"
+code = "Chroma hmc 3.44.0, QUDA"
+storage = "nersc_hpss"
+description = """\
+Nf=2+1 stout-smeared clover Wilson fermion ensemble (JLab isoClover action) \
+on a 64^3 x 192 lattice with the tree-level Luscher-Weisz gauge action at \
+beta = 6.5, bare light-quark mass -0.2080 and strange-quark mass -0.1788. Two \
+Markov chain streams on NERSC HPSS: main and one branched from it at \
+trajectory 2800, with per-stream trajectory numbering. Configurations are in \
+SciDAC/ILDG LIME format, one file per configuration (about 29 GB), saved \
+every 2 HMC trajectories of length tau0 = 1.414, force-gradient integrator \
+with Hasenbusch preconditioning. The same ensemble is catalogued \
+independently by JLab."""
+
+[lqcd]
+nflavors = 3
+flavor_structure = "2+1 (m_u = m_d < m_s)"
+beta = 6.5
+Nx = 64
+Ny = 64
+Nz = 64
+Nt = 192
+volume = [64, 64, 64, 192]
+
+[lqcd.action]
+gauge = "LW_TREE"
+gauge_u0 = 0.85703554213273
+fermion = "clover"
+fermion_state = "STOUT_FERM_STATE"
+csw = 1.170082389372972
+anisotropic = false
+fermion_bc = "1 1 1 -1"
+
+[lqcd.mass]
+light = -0.2080
+strange = -0.1788
+
+[lqcd.smearing]
+type = "stout"
+rho = 0.125
+n_smear = 1
+
+[lqcd.hmc]
+tau0 = 1.414
+integrator = "LCM_STS_FORCE_GRAD"
+n_steps = 14
+save_interval = 2
+n_warmup_updates = 20
+hasenbusch_masses = [-0.2050, -0.1950, -0.1600]
+rational_lower_min = 0.0007
+rational_upper_max = 32
+code_version = "chroma 3.44.0 + quda"
+
+[streams.main]
+dir = "cl21_64_192_b6p5_m0p2080_m0p1788"
+[streams.2800]
+dir = "cl21_64_192_b6p5_m0p2080_m0p1788-2800"
+parent_stream = "main"
+parent_trajectory = 2800
+exclude = ['^cfgs/cl21_64_192_b6p5_m0p2080_m0p1788_cfg_2800\.lime$']   # copy of main's branch-point config
+
+[[files]]
+pattern = '^cfgs/.+_cfg_(?P<trajectory>\d+)\.lime$'
+kind = "gauge_config"
+format = "application/x-lime"
+description = "Gauge configuration in SciDAC/ILDG LIME format, Chroma HMC input embedded in the header."

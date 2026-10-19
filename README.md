@@ -89,7 +89,7 @@ the NERSC python module). `requirements.txt` is the same dependency list for
 
 | scripts | need |
 |---|---|
-| hpss_inventory, build_records, hpss_select, untar_manifest | stdlib only |
+| hpss_inventory, build_records, hpss_select, untar_manifest, lime_hmc_params | stdlib only |
 | declare_records, retrieve_records, attach_checksums | metacat-client |
 | globus_transfer | globus-cli for `--submit` / `--status` |
 | htar_members, reduce_corrs, merge_corrs | h5py + numpy (`.[reduce]`, or NERSC `module load python`) |
@@ -171,7 +171,8 @@ catalog.toml            site config: catalog, namespace, storage collections, op
 pyproject.toml          dependencies for `pip install -e .` (metacat-client; extras [transfer], [reduce])
 requirements.txt        the same list for `pip install -r`
 ensembles/<name>.toml   one per ensemble (physics, streams, file rules)
-scripts/                the four catalog steps + catalog_common.py (+ attach_checksums.py), the three data-movement
+scripts/                the four catalog steps + catalog_common.py (+ attach_checksums.py,
+                        lime_hmc_params.py to read HMC parameters out of a LIME header), the three data-movement
                         steps hpss_select / globus_transfer / untar_manifest, and the three
                         correlator steps htar_members / reduce_corrs / merge_corrs
 bin/metacat_login.sh    interactive token login;  bin/check_auth.sh  status + exit codes
@@ -204,7 +205,14 @@ work/                   generated per-ensemble JSON (gitignored)
       clover-iso on NERSC HPSS (only analysis output and sparse propagators); the
       location of the configs is being asked around before cataloging
 - [x] all other cl3 ensembles (9 datasets, ~37k records, ~32 TB)
-- [ ] cl21 ensembles
+- [x] cl21 ensembles with configurations on HPSS (6 datasets, 21 streams, ~18k records,
+      ~350 TB): cl21_48_96_b6p3, cl21_64_128_b6p3, cl21_64_192_b6p5, cl21_72_192_b6p5,
+      cl21_72_192_b6p7, cl21_96_192_b6p5, declared 2026-10-19. Action parameters read
+      from the Chroma input embedded in LIME headers (`scripts/lime_hmc_params.py`).
+      These ensembles are also catalogued by JLab; a reconciliation step is pending
+      (`docs/open_questions.md`, item 10).
+- [ ] cl21 beta=6.1 directories (cl21_24_64, cl21_32_96, cl21_48_96_b6p1_a..g) hold only
+      2012-2015 analysis output (contraction databases, hadspec, blocks), no configurations
 - [ ] sparse propagators and correlators (new `lqcd.artifact.kind` values and
       `lqcd.parent.*` provenance back to the gauge configs)
 - [ ] checksums: back up to FDP, then `attach_checksums.py --from-dcache`

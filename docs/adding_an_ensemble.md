@@ -31,6 +31,19 @@ Mass or kappa: give either `[lqcd.mass]` or `[lqcd.kappa]` per flavor
 (`light`, `strange`, `charm`...). For isotropic Wilson-type actions the other
 is derived and both are stored.
 
+**Where to get the numbers.** Chroma writes its full HMC input into the
+header of every LIME configuration it saves, so the file itself is the
+authoritative source even when no restart XML survives:
+
+```
+python3 scripts/lime_hmc_params.py hpss:/home/w/.../cfgs/<ens>_cfg_1000.lime --toml
+```
+
+prints a `[lqcd]` block to paste (beta, u0, csw, stout parameters, tau0,
+integrator, save interval, the distinct masses in the input). It reads only
+the first few MB; for an HPSS file that must already be on the disk cache
+(`hsi ls -X <file>`), otherwise HPSS stages the whole file first.
+
 ### `[streams]` (optional; default one stream `main` in directory `<name>`)
 
 One sub-table per Markov chain stream. The key is the stream label stored in
@@ -45,7 +58,14 @@ dir = "cl3_32_64_b6p5_m0p1788"
 dir = "cl3_32_64_b6p5_m0p1788-a"
 parent_stream = "main"
 parent_trajectory = 1500
+exclude = ['^cfgs/cl3_32_64_b6p5_m0p1788_cfg_1500\.lime$']   # optional: files in this
+                                                           # directory to leave out, e.g. a
+                                                           # copy of the branch-point config
 ```
+
+Stream labels are free strings; NPLQCD's `-1000` style suffix (branched from
+`main` at trajectory 1000) becomes `[streams.1000]` with
+`parent_trajectory = 1000`, and `-djm-1` becomes `[streams."djm-1"]`.
 
 ### `[[files]]` (optional; default = NPLQCD/Chroma layout)
 

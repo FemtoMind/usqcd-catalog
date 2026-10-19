@@ -1,0 +1,80 @@
+# Ensemble description: cl21_64_128_b6p3_m0p2416_m0p2050
+#
+# Nf=2+1 stout-clover, 64^3 x 128, beta = 6.3, m_l = -0.2416, m_s = -0.2050:
+# the large-volume partner of cl21_48_96_b6p3 with the same action. Four
+# streams on NERSC HPSS: main, and -700/-750/-800 branched from main at that
+# trajectory (directory naming convention). Beta-dependent action numbers are
+# those of the 48^3 x 96 ensemble at this point (verified there from the LIME
+# header); no configuration of this volume was on the HPSS disk cache to read
+# directly, so stream-specific integrator settings are omitted. Also
+# catalogued by JLab; records to be reconciled.
+
+[ensemble]
+name = "cl21_64_128_b6p3_m0p2416_m0p2050"
+display_name = "cl21 64^3x128 beta=6.3 ml=-0.2416 ms=-0.2050"
+collaboration = "NPLQCD"
+generated_by = "JLab isoClover program / NPLQCD (W. Detmold)"
+code = "Chroma hmc, QUDA"
+storage = "nersc_hpss"
+description = """\
+Nf=2+1 stout-smeared clover Wilson fermion ensemble (JLab isoClover action) \
+on a 64^3 x 128 lattice with the tree-level Luscher-Weisz gauge action at \
+beta = 6.3, bare light-quark mass -0.2416 and strange-quark mass -0.2050, the \
+large-volume partner of the 48^3 x 96 ensemble at this point. Four Markov \
+chain streams on NERSC HPSS: main and three branched from it at trajectories \
+700, 750 and 800, with per-stream trajectory numbering. Configurations are \
+in SciDAC/ILDG LIME format, one file per configuration (about 19 GB), HMC \
+trajectory length tau0 = 1.414. The same ensemble is catalogued \
+independently by JLab."""
+
+[lqcd]
+nflavors = 3
+flavor_structure = "2+1 (m_u = m_d < m_s)"
+beta = 6.3
+Nx = 64
+Ny = 64
+Nz = 64
+Nt = 128
+volume = [64, 64, 64, 128]
+
+[lqcd.action]
+gauge = "LW_TREE"
+gauge_u0 = 0.84570646270714
+fermion = "clover"
+fermion_state = "STOUT_FERM_STATE"
+csw = 1.20536588031793
+anisotropic = false
+fermion_bc = "1 1 1 -1"
+
+[lqcd.mass]
+light = -0.2416
+strange = -0.2050
+
+[lqcd.smearing]
+type = "stout"
+rho = 0.125
+n_smear = 1
+
+[lqcd.hmc]
+tau0 = 1.414
+
+[streams.main]
+dir = "cl21_64_128_b6p3_m0p2416_m0p2050"
+[streams.700]
+dir = "cl21_64_128_b6p3_m0p2416_m0p2050-700"
+parent_stream = "main"
+parent_trajectory = 700
+[streams.750]
+dir = "cl21_64_128_b6p3_m0p2416_m0p2050-750"
+parent_stream = "main"
+parent_trajectory = 750
+[streams.800]
+dir = "cl21_64_128_b6p3_m0p2416_m0p2050-800"
+parent_stream = "main"
+parent_trajectory = 800
+
+[[files]]
+pattern = '^cfgs/.+_cfg_(?P<trajectory>\d+)\.lime$'
+kind = "gauge_config"
+format = "application/x-lime"
+description = "Gauge configuration in SciDAC/ILDG LIME format, Chroma HMC input embedded in the header."

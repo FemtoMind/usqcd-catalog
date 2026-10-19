@@ -220,8 +220,16 @@ def main() -> int:
     classified = []  # (stream_label, directory_stream_label, file, rule, groups)
     unmatched = Counter()
     per_stream: dict[str, dict] = {}
+    excluded = Counter()
     for dir_label, st in inv["streams"].items():
+        # [streams.<x>].exclude = ['regex', ...]: files in this stream's directory
+        # to leave out (e.g. a copy of another stream's configuration kept as
+        # the branch point).
+        excludes = [re.compile(p) for p in ens["streams"][dir_label].get("exclude", [])]
         for f in st["files"]:
+            if any(p.search(f["rel_path"]) for p in excludes):
+                excluded[dir_label] += 1
+                continue
             rule, groups = classify(f["rel_path"], ens["files"])
             if rule is None:
                 unmatched[f["rel_path"].split("/")[0]] += 1  # count by top-level directory
@@ -326,6 +334,8 @@ def main() -> int:
         print(f"  stream {k:>5}: {describe_counts(v)}, trajectories {v['trajectory_min']}..{v['trajectory_max']}")
     if unmatched:
         print(f"  skipped (no [[files]] rule): {dict(unmatched)}")
+    if excluded:
+        print(f"  excluded by [streams.*].exclude: {dict(excluded)}")
     print(f"wrote {outp}")
     return 0
 
