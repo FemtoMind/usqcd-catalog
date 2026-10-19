@@ -44,6 +44,20 @@ integrator, save interval, the distinct masses in the input). It reads only
 the first few MB; for an HPSS file that must already be on the disk cache
 (`hsi ls -X <file>`), otherwise HPSS stages the whole file first.
 
+### `[observables]` (optional)
+
+Downstream numbers that describe the ensemble, stored on the dataset record
+as `lqcd.obs.*` (field list in `docs/schema.md`). One sub-table per
+observable with `quantity`, `value`, `stat`, optional `ncfgs` and `notes`;
+`[observables.a]` lists `schemes` and has one sub-table per scheme with
+`definition`, `value`, `stat`, `scale_err`. See any `ensembles/cl3_*.toml`
+for the full pattern. After editing, push without touching the file records:
+
+```
+python3 scripts/build_records.py   ensembles/<name>.toml
+python3 scripts/declare_records.py work/<name>/records.json --update-existing --dataset-only
+```
+
 ### `[streams]` (optional; default one stream `main` in directory `<name>`)
 
 One sub-table per Markov chain stream. The key is the stream label stored in

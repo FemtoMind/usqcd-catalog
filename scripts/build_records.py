@@ -73,6 +73,12 @@ def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict) -> dict:
     }
     md.update(flatten(ens["lqcd"], "lqcd"))
     complete_mass_kappa(md)
+    # Downstream observables ([observables] table): dataset-level only, flattened
+    # to lqcd.obs.<name>.<field>. lqcd.obs.list names the registered observables.
+    obs = ens.get("observables") or {}
+    if obs:
+        md.update(flatten(obs, "lqcd.obs"))
+        md["lqcd.obs.list"] = [k for k, v in obs.items() if isinstance(v, dict)]
     return md
 
 
@@ -97,7 +103,9 @@ def physics_summary(ens_md: dict) -> str:
 
 # Ensemble-level keys that describe the dataset as a whole and are not copied
 # onto every file record (file records get the physics keys, lqcd.beta etc.).
-DATASET_ONLY_PREFIXES = ("lqcd.n_", "lqcd.streams", "lqcd.stream_summary", "lqcd.catalog.")
+# Ensemble-level fields that stay on the dataset record and are NOT copied onto
+# every file (counts, stream bookkeeping, and the downstream observables).
+DATASET_ONLY_PREFIXES = ("lqcd.n_", "lqcd.streams", "lqcd.stream_summary", "lqcd.catalog.", "lqcd.obs.")
 # FDP naming rule: letters, digits, "-", ".", "_" and "/" only.
 NAME_CHARS = "A-Z a-z 0-9 - . _ /"
 NAME_OK = re.compile(r"^[A-Za-z0-9._/-]+$")

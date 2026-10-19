@@ -88,6 +88,8 @@ def main() -> int:
     ap.add_argument("--config", help="site config (default: catalog.toml in repo root)")
     ap.add_argument("--dry-run", action="store_true", help="validate on the server, declare nothing")
     ap.add_argument("--update-existing", action="store_true", help="merge metadata into already-declared files and the dataset")
+    ap.add_argument("--dataset-only", action="store_true",
+                    help="with --update-existing: refresh only the dataset record (e.g. new observables), touch no files")
     ap.add_argument("--batch-size", type=int, default=200)
     ap.add_argument("--limit", type=int, help="declare at most N new files (for a first smoke test)")
     args = ap.parse_args()
@@ -119,6 +121,13 @@ def main() -> int:
     else:
         print(f"dataset {ds_did} exists ({ds.get('file_count', '?')} files)")
         report["dataset_action"] = "none"
+
+    if args.dataset_only:
+        report.update({"finished_at": utcnow(), "n_new": 0, "n_existing": 0, "n_declared": 0,
+                       "n_validated": 0, "n_updated": 0, "errors": []})
+        write_json(Path(args.records_json).parent / f"declare_{time.strftime('%Y%m%dT%H%M%S')}.json", report)
+        print("dataset-only: file records not touched")
+        return 0
 
     # ---- split new / existing
     have = existing_names(client, ns, [f["name"] for f in files])

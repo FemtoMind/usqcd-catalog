@@ -57,6 +57,44 @@ actions (where xi and nu enter) or non-Wilson actions.
 | `lqcd.catalog.updated_at` | ISO timestamp of the last `build_records.py` |
 | `lqcd.<physics>` | everything from the ensemble TOML `[lqcd]` table, flattened (below) |
 
+## Downstream observables (dataset record only)
+
+An ensemble TOML may carry an `[observables]` table; it is flattened onto the
+dataset record as `lqcd.obs.<name>.<field>` and `lqcd.obs.list` names the
+registered observables. Each observable has `quantity` (what the number is,
+with its units convention), `value`, `stat` (statistical uncertainty),
+`ncfgs` (configurations used, when recorded) and `notes` (free text in the
+group's house style, e.g. "6^3 grid of sparsened quark propagators on 8
+timeslices with 20 steps of wave function smearing with width 2.1.
+Prony-Ritz analysis of t = [2, Lt/2] with korrfitter v0 defaults.").
+
+Registered for the NPLQCD cl3 ensembles (source: `ensembles/sources/`):
+
+| key | quantity |
+|---|---|
+| `lqcd.obs.t0` | `t0/a^2` (Wilson flow) |
+| `lqcd.obs.w0` | `w0/a` |
+| `lqcd.obs.mpi` | `a*m_pi` |
+| `lqcd.obs.mN` | `a*M_N` (degenerate octet baryon at the SU(3)-symmetric point) |
+| `lqcd.obs.mpi_over_mN` | `m_pi/M_N` |
+| `lqcd.obs.a` | lattice spacing, see below |
+| `lqcd.obs.spectrum_setup.*` | sparsening factor, sparse grid, source timeslices, smearing width/steps, Ncfgs behind the hadron masses |
+
+**Lattice spacing** has a top-level `lqcd.obs.a.schemes` list and, per
+scheme `<s>`, `lqcd.obs.a.<s>.definition` (the formula and the physical
+input with its reference), `.value`, `.stat` (propagated from the flow
+scale's statistical error) and `.scale_err` (from the physical input;
+100% correlated across ensembles), in `lqcd.obs.a.units`. Two schemes are
+registered: `t0` with sqrt(t0^phys) = 0.14474(57) fm (FLAG 2024, Nf=2+1) and
+`w0` with w0^phys = 0.17187(68) fm (Fermilab/MILC, arXiv:2509.14367). The
+statistical and scale errors are stored separately rather than combined;
+combine them as you see fit.
+
+Observables live on the dataset record, not on every file, because they
+describe the ensemble; `retrieve_records.py --list-ensembles` shows `a`
+(t0 scheme) and `a*m_pi` per ensemble, and MQL `datasets` queries can filter
+on them.
+
 ## Physics fields (dataset and every file)
 
 Taken verbatim from the Chroma HMC input. Names follow the existing

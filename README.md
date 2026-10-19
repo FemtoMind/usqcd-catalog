@@ -52,6 +52,11 @@ live in `catalog.toml`. Ensemble-specific values live in
   the storage system the bytes are actually on (NERSC HPSS here). Anyone with
   Globus access to that collection can transfer from it without knowing `hsi`.
   `lqcd.storage.*` carries the same facts as plain queryable fields.
+* **Downstream observables live on the dataset record** (`lqcd.obs.*`): flow
+  scales t0 and w0, pion and nucleon masses, and the lattice spacing in named
+  schemes (t0, w0) each with definition, value, statistical and scale errors.
+  They come from an `[observables]` table in the ensemble TOML and are pushed
+  with `declare_records.py --update-existing --dataset-only`.
 * **Checksums are optional.** HPSS stores none and the bytes are on tape
   only, so records start without them. `build_records.py --checksums` takes
   hashes you already have; `attach_checksums.py --from-dcache` pulls the
@@ -201,9 +206,12 @@ work/                   generated per-ensemble JSON (gitignored)
 - [x] cl3_30_60_b6p2_m0p2200 / m0p2250, cl3_36_64_b6p3_m0p2050 / m0p2170,
       cl3_48_96_b6p5_m0p1788: single streams, 520 to 816 configs each, declared
       2026-10-19 and round-trip verified (0 diffs)
-- [ ] cl3_48_64_b6p1_m0p2450 and cl3_48_64_b6p3_m0p2050_b: no gauge configurations under
-      clover-iso on NERSC HPSS (only analysis output and sparse propagators); the
-      location of the configs is being asked around before cataloging
+- [x] downstream observables (t0, w0, a*m_pi, a*M_N, m_pi/M_N, lattice spacing in the t0
+      and w0 schemes) registered on all 11 cl3 datasets from the H-dibaryon analysis
+      (`ensembles/sources/`), 2026-10-19
+- [ ] cl3_48_64_b6p1_m0p2450 and cl3_48_64_b6p3_m0p2050: datasets exist with physics and
+      observables but no file records; no gauge configurations under clover-iso on NERSC
+      HPSS (only analysis output and sparse propagators); location being asked around
 - [x] all other cl3 ensembles (9 datasets, ~37k records, ~32 TB)
 - [x] cl21 ensembles with configurations on HPSS (6 datasets, 21 streams, ~18k records,
       ~350 TB): cl21_48_96_b6p3, cl21_64_128_b6p3, cl21_64_192_b6p5, cl21_72_192_b6p5,

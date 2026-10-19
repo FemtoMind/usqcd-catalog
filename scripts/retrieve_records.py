@@ -90,6 +90,11 @@ def build_mql(did: str | None, args) -> str:
     return q
 
 
+def fmt(value, spec: str) -> str:
+    """Format a number for the table, or an empty cell when it is absent."""
+    return format(value, spec) if isinstance(value, (int, float)) else ""
+
+
 def list_ensembles(client, ns: str) -> list[dict]:
     """All datasets in the namespace that look like ensembles, with the physics
     fields people search on. Reads only."""
@@ -110,6 +115,7 @@ def list_ensembles(client, ns: str) -> list[dict]:
             "volume": md.get("lqcd.volume"), "mass_light": md.get("lqcd.mass.light"),
             "kappa_light": md.get("lqcd.kappa.light"), "streams": md.get("lqcd.streams"),
             "n_configs": md.get("lqcd.n_configs"), "display_name": md.get("AmSC.common.display_name"),
+            "a_fm_t0": md.get("lqcd.obs.a.t0.value"), "a_mpi": md.get("lqcd.obs.mpi.value"),
         })
     return out
 
@@ -175,11 +181,14 @@ def main() -> int:
 
     if args.list_ensembles:
         rows = list_ensembles(client, ns)
-        print(f"{'dataset':40} {'Nf':>2} {'action':8} {'beta':>6} {'volume':>16} {'m_light':>10} {'kappa_l':>10} {'cfgs':>5}  streams")
+        print(f"{'dataset':40} {'Nf':>2} {'action':8} {'beta':>6} {'volume':>16} {'m_light':>10} {'kappa_l':>10} "
+              f"{'a[fm](t0)':>10} {'a*mpi':>7} {'cfgs':>5}  streams")
         for r in rows:
             print(f"{r['did']:40} {str(r['nflavors'] or ''):>2} {str(r['action'] or ''):8} {str(r['beta'] or ''):>6} "
                   f"{str(r['volume'] or ''):>16} {str(r['mass_light'] if r['mass_light'] is not None else ''):>10} "
-                  f"{str(r['kappa_light'] if r['kappa_light'] is not None else ''):>10} {str(r['n_configs'] or ''):>5}  {r['streams'] or ''}")
+                  f"{str(r['kappa_light'] if r['kappa_light'] is not None else ''):>10} "
+                  f"{fmt(r['a_fm_t0'], '.4f'):>10} {fmt(r['a_mpi'], '.4f'):>7} "
+                  f"{str(r['n_configs'] or ''):>5}  {r['streams'] or ''}")
         write_json(work_dir(cfg, "_namespace") / "ensembles.json", rows)
         return 0
 
