@@ -1,0 +1,147 @@
+# Derived dataset: all-to-all sparse propagators on cl21_48_96_b6p3_m0p2416_m0p2050
+# (OLCF Frontier production, 2025-2026)
+#
+# HPSS layout (clover-iso/<stream dir>/frontier/):
+#   propagators/<TRAJ>.tar (+ .idx)      light quark, all eight streams: 41472 members
+#        <TRAJ>/sprop_x<X>y<Z>z<Z>t<T>_uS7.0_S0.0.prop and _uS7.0_S7.0.prop for all 216
+#        positions of the 6^3 sparse grid x all 96 source timeslices x two sink
+#        smearings (0.0 = point, 7.0), 991 GB per configuration (verified: main 1000.tar)
+#   strange-props/<TRAJ>.tar (+ .idx)    the same for the strange quark (sS7.0_S0.0 /
+#        sS7.0_S7.0, plus manifest.txt) on main, -1000, -1200 and -2420
+#   initial-run/propagators/<TRAJ>.tar   main stream only, 26 configurations, light,
+#        S7.0_S7.0 only (20736 members)
+#   propagators/timeslice-to-self/       equal-time blocks S(x,t; y,t) of the light
+#        propagator on the same grid, derived from the above (README_Stt.md inside):
+#        <TRAJ>_Stt.tar  = <TRAJ>_Stt.h5 (dataset Stt[t,x,y,s,c,s',c'], shape
+#                          (96,216,216,4,3,4,3) complex, 10.3 GB, fletcher32 per
+#                          timeslice, sha256 sidecar, README/checker/packer embedded)
+#        <TRAJ>.tar      = the 96 S<t>.npy arrays the .h5 was packed from
+#        MANIFEST.tsv, README_Stt.md, checkme_stt.py, pack_stt.py
+# Sources on every sparse site of every timeslice make this an all-to-all
+# (sparse-to-sparse) set, the input for matrix elements, meson fields and the
+# two-pion contractions. Smearing step count for width 7.0: not in any archived
+# run XML; the 2025 smearing tests on this ensemble encode S7.0N100 (100 steps).
+
+[ensemble]
+name = "cl21_48_96_b6p3_m0p2416_m0p2050_sparseprops_a2a"
+parent = "cl21_48_96_b6p3_m0p2416_m0p2050"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl21 48^3x96 beta=6.3 sparse propagators (all-to-all, Frontier)"
+generated_by = "NPLQCD (OLCF Frontier, 2025-2026)"
+code = "Chroma + QUDA"
+description = """\
+All-to-all sparsened quark propagators on the cl21_48_96_b6p3_m0p2416_m0p2050 \
+ensemble (Nf=2+1 stout-clover, 48^3 x 96, beta = 6.3, m_l = -0.2416, \
+m_s = -0.2050), produced on OLCF Frontier: for every configuration one htar \
+archive per flavor holding the propagators from every site of a 6^3 sparse \
+grid (sparsening factor 8) on every one of the 96 timeslices, with \
+gauge-invariant Gaussian width-7.0 source smearing and both point and \
+width-7.0 sink smearing (41472 propagators, 991 GB per archive). Light-quark \
+archives exist on all eight streams, strange-quark archives on four, plus a \
+26-configuration initial run. The equal-time blocks of the light propagator \
+(timeslice-to-self, lqcd.artifact.kind = sparse_propagator_timeslice_to_self) \
+packed as self-checking HDF5 files are included. The all-to-all variety is \
+the input for matrix-element calculations, meson fields and multi-hadron \
+contractions. Each archive is one catalog record with lqcd.parent.* naming \
+its configuration."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "all-to-all"
+storage_layout = "one htar archive per configuration and flavor holding all 96 source timeslices"
+file_format = "NPLQCD sprop binary, one file per source position, timeslice and sink smearing"
+sparse_grid = "6^3"
+sparsening_factor = 8
+n_sources_per_timeslice = 216
+n_source_timeslices = 96
+flavors = ["light", "strange"]
+member_flavor_prefix = "u = light, s = strange"
+quark_mass_light = -0.2416
+quark_mass_strange = -0.2050
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK and POINT_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 7.0
+sink_smearing_widths = [0.0, 7.0]
+smearing_steps = "unrecorded (smearing tests on this ensemble used 100 steps for width 7.0)"
+members_per_archive = 41472
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_{u|s}S7.0_S{w_snk}.prop"
+
+# --- light quark, all streams
+[[files]]
+pattern = '^frontier/propagators/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.flavors" = ["light"], "lqcd.prop.smearing_combinations" = ["S7.0_S0.0", "S7.0_S7.0"] }
+description = "htar archive of the light-quark all-to-all sparse propagators for one configuration: 216 positions x 96 source timeslices x point and width-7.0 sink smearing (41472 members)."
+
+[[files]]
+pattern = '^frontier/propagators/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the light-quark propagator archive of the same name."
+
+# --- strange quark, main, -1000, -1200, -2420
+[[files]]
+pattern = '^frontier/strange-props/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.flavors" = ["strange"], "lqcd.prop.smearing_combinations" = ["S7.0_S0.0", "S7.0_S7.0"] }
+description = "htar archive of the strange-quark all-to-all sparse propagators for one configuration: 216 positions x 96 source timeslices x point and width-7.0 sink smearing (41472 members, plus manifest.txt)."
+
+[[files]]
+pattern = '^frontier/strange-props/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the strange-quark propagator archive of the same name."
+
+# --- initial run, main stream, smeared sink only
+[[files]]
+pattern = '^frontier/initial-run/propagators/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.variant" = "initial-run", "lqcd.prop.flavors" = ["light"], "lqcd.prop.smearing_combinations" = ["S7.0_S7.0"], "lqcd.prop.members_per_archive" = 20736 }
+description = "htar archive of the light-quark all-to-all sparse propagators from the initial Frontier run for one configuration: 216 positions x 96 source timeslices, width-7.0 sink smearing only (20736 members)."
+
+[[files]]
+pattern = '^frontier/initial-run/propagators/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the initial-run propagator archive of the same name."
+
+# --- timeslice-to-self blocks derived from the light all-to-all set
+[[files]]
+pattern = '^frontier/propagators/timeslice-to-self/(?P<trajectory>\d+)_Stt\.tar$'
+kind = "sparse_propagator_timeslice_to_self"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.topology" = "timeslice-to-self", "lqcd.prop.flavors" = ["light"], "lqcd.prop.smearing_combinations" = ["S7.0_S7.0"], "lqcd.prop.file_format" = "HDF5 <cfg>_Stt.h5: dataset Stt[t, x, y, s, c, s', c'] of shape (96, 216, 216, 4, 3, 4, 3) complex, one chunk per timeslice with fletcher32 checksums; per-timeslice sha256 table, gamma5-hermiticity fingerprints, README/checker/packer embedded as attributes; .sha256 sidecar", "lqcd.prop.storage_layout" = "one htar archive per configuration holding the .h5, its sha256, README_Stt.md, checkme_stt.py and pack_stt.py", "lqcd.prop.gamma_basis" = "DeGrand-Rossi", "lqcd.prop.members_per_archive" = 5 }
+description = "htar archive of the equal-time sparse propagator blocks S((x,t),(y,t)) of the light quark for one configuration, all 96 timeslices, as a self-describing, self-checking HDF5 file (10.3 GB) with its README, checker and packing script."
+
+[[files]]
+pattern = '^frontier/propagators/timeslice-to-self/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_self"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.topology" = "timeslice-to-self", "lqcd.prop.variant" = "npy", "lqcd.prop.flavors" = ["light"], "lqcd.prop.smearing_combinations" = ["S7.0_S7.0"], "lqcd.prop.file_format" = "96 NumPy arrays <traj>/S<t>.npy of shape (216, 216, 4, 3, 4, 3) complex, one per timeslice", "lqcd.prop.members_per_archive" = 96 }
+description = "htar archive of the equal-time sparse propagator blocks of the light quark for one configuration as 96 per-timeslice NumPy arrays (the form the _Stt.h5 file was packed from)."
+
+[[files]]
+pattern = '^frontier/propagators/timeslice-to-self/(?P<trajectory>\d+)(?:_Stt)?\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the timeslice-to-self archive of the same name."
+
+[[files]]
+pattern = '^frontier/propagators/timeslice-to-self/(?:MANIFEST\.tsv|README_Stt\.md|checkme_stt\.py|pack_stt\.py)$'
+kind = "documentation"
+format = "text/plain"
+description = "Timeslice-to-self set documentation: README_Stt.md (what the object is, index order, how to read and check it), MANIFEST.tsv (cfg, sha256, bytes, date), checkme_stt.py (integrity checker) and pack_stt.py (packer)."

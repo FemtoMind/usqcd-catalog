@@ -1,0 +1,112 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl21_64_128_b6p3_m0p2416_m0p2050
+#
+# HPSS layout (clover-iso/cl21_64_128_b6p3_m0p2416_m0p2050{,-700,-750,-800}/):
+#   sparseprops/<TRAJ>.tar (+ .idx)       one archive per configuration; the source
+#        timeslice is NOT in the name and is drawn per configuration (the htar indexes
+#        show it spread uniformly over 0..127). 1024 members
+#        <TRAJ>/sprop_x<X>y<Y>z<Z>t<T>_{u,s}S3.0_S3.0.prop (155 GB) for ~1450 of them;
+#        ~35 hold 4096 (the four S3.0/S4.5 source/sink combinations, 619 GB); a few are
+#        partial (1886, 2384 members) and -700/1050.tar holds 2048 (sinks S0.0, S3.0)
+#   sparseprops/1020_all.tar              main: t = 19 with four S3.0/S4.5 combinations
+#                                         plus t = 37 S3.0_S3.0 (5120 members)
+#   -700/sparseprops_multitimes/<TRAJ>.tar  96 archives of 24576 members: source
+#        timeslices 0, 8, 10, 12, 14, 16 x {u,s} x four S0.0/S3.0 combinations (3.7 TB)
+#   -800/sparseprops-t0/<TRAJ>.tar        186 plain tars (no .idx), 155 GB, i.e. the
+#                                         1024-member layout at t = 0 (not verified)
+# Build with --archive-index (bin/sprop_members_xfer.sh) so each indexed archive
+# records its actual lqcd.prop.tsrc_list / flavors / smearing_combinations / n_members.
+
+[ensemble]
+name = "cl21_64_128_b6p3_m0p2416_m0p2050_sparseprops"
+parent = "cl21_64_128_b6p3_m0p2416_m0p2050"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl21 64^3x128 beta=6.3 sparse propagators (timeslice-to-all)"
+generated_by = "NPLQCD (W. Detmold et al.; 2024-2025)"
+code = "Chroma + QUDA"
+description = """\
+Timeslice-to-all sparsened light and strange quark propagators on the \
+cl21_64_128_b6p3_m0p2416_m0p2050 ensemble (Nf=2+1 stout-clover, 64^3 x 128, \
+beta = 6.3, m_l = -0.2416, m_s = -0.2050), on all four streams: one archive \
+per configuration holding the propagators from every source position of an \
+8^3 sparse grid (sparsening factor 8) for both flavors at one source \
+timeslice drawn per configuration, with gauge-invariant Gaussian width-3.0 \
+source and sink smearing (1024 propagators; about 35 configurations carry \
+the four width-3.0/4.5 combinations, 4096). Stream 700 also has a \
+96-configuration multi-timeslice set (source \
+timeslices 0, 8, 10, 12, 14, 16 with point and smeared sources and sinks, \
+24576 propagators per archive) and stream 800 a set at source timeslice 0. \
+Where an htar index exists the record says exactly what the archive holds \
+(lqcd.prop.tsrc_list, flavors, smearing_combinations, n_members). Each \
+archive is one catalog record with lqcd.parent.* naming its configuration."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+file_format = "NPLQCD sprop binary, one file per source position, flavor and smearing combination"
+sparse_grid = "8^3"
+sparsening_factor = 8
+n_sources_per_timeslice = 512
+source_timeslice_note = "one source timeslice per configuration, not in the archive name; lqcd.prop.tsrc_list where the archive has an htar index"
+flavors = ["light", "strange"]
+member_flavor_prefix = "u = light, s = strange"
+quark_mass_light = -0.2416
+quark_mass_strange = -0.2050
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_widths = [3.0, 4.5]
+smearing_steps = "unrecorded (no run XML archived here; the 2025 cl21_48_96 production used 35 steps for width 3.0 with stout link smearing 0.16 x 8 and the QUDA multigrid clover inverter to 1e-12)"
+archive_layouts = "1024 members (512 positions x {u,s}, S3.0_S3.0, 155 GB); ~35 archives of 4096 (four S3.0/S4.5 combinations, 619 GB); multitimes: 24576 (6 timeslices x {u,s} x four S0.0/S3.0 combinations, 3.7 TB)"
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_{u|s}S{w_src}_S{w_snk}.prop"
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar archive of timeslice-to-all sparse propagators for one configuration at one source timeslice drawn per configuration (lqcd.prop.tsrc where the index was read): 512 source positions x light and strange, width-3.0 smearing (a few archives carry the four width-3.0/4.5 combinations; lqcd.prop.smearing_combinations)."
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)_all\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.variant" = "all", "lqcd.prop.members_per_archive" = 5120 }
+description = "htar archive of timeslice-to-all sparse propagators for one configuration at two source timeslices: 19 with the four S3.0/S4.5 source/sink smearing combinations and 37 with S3.0_S3.0, light and strange."
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)_all\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."
+
+[[files]]
+pattern = '^sparseprops_multitimes/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.variant" = "multi-timeslice", "lqcd.prop.members_per_archive" = 24576 }
+description = "htar archive of timeslice-to-all sparse propagators for one configuration at source timeslices 0, 8, 10, 12, 14 and 16: 512 positions x light and strange x the four point/width-3.0 source and sink combinations."
+
+[[files]]
+pattern = '^sparseprops_multitimes/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the multi-timeslice archive of the same name."
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "Tar archive (no htar index) of timeslice-to-all sparse propagators for one configuration at the source timeslice in the directory name; 155 GB, consistent with 512 positions x light and strange with width-3.0 smearing (not verified)."

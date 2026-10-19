@@ -57,9 +57,26 @@ convention hardens. Comments as GitHub issues are easiest.
     these does the JLab side have, and should the merged record keep both
     catalogs' names as aliases (`lqcd.alias.jlab = ...`) rather than pick one?
 
-11. **Derived artifacts.** For propagators and correlators the plan is
-   `lqcd.parent.kind/ensemble/stream/trajectory` (+ `sha256` once we have
-   checksums) pointing at the gauge config. Kind-specific fields proposed:
-   `lqcd.prop.*` (source type, smearing, mass, solver tolerance, sparsening),
-   `lqcd.corr.*` (interpolator set, momenta, time sources). Suggestions
-   welcome before anything is written.
+11. **Derived artifacts.** Propagators carry
+    `lqcd.parent.kind/ensemble/stream/trajectory` (+ `sha256` once we have
+    checksums) pointing at the gauge config, and `lqcd.prop.*` (source type,
+    smearing, flavors, masses, solver, sparsening); correlators will carry
+    `lqcd.corr.*` (interpolator set, momenta, time sources). Sparse
+    propagators are split into timeslice-to-all and all-to-all kinds and
+    datasets (`docs/schema.md`). Suggestions welcome.
+
+12. **Archive contents vs names.** Several cl21 propagator directories are
+    only nominally organised (`sparseprops-t0/` holding archives with a
+    random source timeslice per configuration; `sparseprops/<traj>.tar`
+    with the timeslice nowhere in the name). We read every htar index and
+    record `lqcd.prop.tsrc_list` / `flavors` / `smearing_combinations` /
+    `n_members` per archive. Should a catalog record for a multi-member
+    archive *require* such an index-derived summary, or is the nominal
+    rule-level metadata acceptable when the index is missing?
+
+13. **Unrecorded smearing steps.** Where no run XML survives (cl21_64_128,
+    cl21_72_192, the Frontier all-to-all runs) the step count for the
+    Gaussian smearing is stored as a string saying so, with the nearest
+    verified production quoted. Better: a numeric field plus a separate
+    `*_source = "unverified"` flag? The reader side treats a string as
+    "unknown".

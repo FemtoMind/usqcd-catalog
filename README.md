@@ -177,11 +177,14 @@ pyproject.toml          dependencies for `pip install -e .` (metacat-client; ext
 requirements.txt        the same list for `pip install -r`
 ensembles/<name>.toml   one per ensemble (physics, streams, file rules)
 scripts/                the four catalog steps + catalog_common.py (+ attach_checksums.py,
-                        lime_hmc_params.py to read HMC parameters out of a LIME header), the three data-movement
+                        lime_hmc_params.py to read HMC parameters out of a LIME header,
+                        sprop_members.py to read what propagator archives hold from their htar
+                        indexes, survey_listing.py to summarise a listing), the three data-movement
                         steps hpss_select / globus_transfer / untar_manifest, and the three
                         correlator steps htar_members / reduce_corrs / merge_corrs
 bin/metacat_login.sh    interactive token login;  bin/check_auth.sh  status + exit codes
-bin/untar_slurm.sh      sbatch wrapper for the unpack step;  bin/reduce_corrs_xfer.sh  for reduce_corrs
+bin/untar_slurm.sh      sbatch wrapper for the unpack step;  bin/reduce_corrs_xfer.sh  for reduce_corrs;
+                        bin/sprop_members_xfer.sh  for sprop_members (submit from the repo root)
 bin/htar_extract.sh     pull named members out of an htar archive;  bin/wait_job.sh  block on a Slurm job
 docs/authentication.md  accounts, tokens, Globus consents, step by step for a new user
 docs/schema.md          every field, what is required, mass/kappa convention
@@ -229,5 +232,14 @@ work/                   generated per-ensemble JSON (gitignored)
       original stream) and 1 all-to-all dataset (`cl3_32_48_b6p1_m0p2450_sparseprops_a2a`),
       ~40k records, ~600 TB, declared 2026-10-19 and round-trip verified. cl3_32_64 (ensemble A)
       has no propagators under clover-iso on HPSS.
-- [ ] correlators (cl3), then cl21 sparse propagators (both topologies) and correlators
+- [x] cl21 sparse propagators, 7 datasets, ~38k records, ~6.1 PB, declared 2026-10-19:
+      timeslice-to-all `cl21_48_96_b6p3_..._sparseprops` (8 streams, 1.4 PB, plus the run XML),
+      `cl21_64_128_b6p3_..._sparseprops`, `cl21_72_192_b6p5_..._sparseprops`,
+      `cl21_96_192_b6p5_..._sparseprops`; all-to-all (OLCF Frontier)
+      `cl21_48_96_b6p3_..._sparseprops_a2a` (light + strange, every timeslice, plus the
+      timeslice-to-self HDF5 blocks) and `cl21_96_192_b6p5_..._sparseprops_a2a`; and the 2025
+      smearing tests as their own dataset. Where directory names are only nominal (random
+      source timeslice per configuration) each record carries what its htar index says
+      (`scripts/sprop_members.py`). cl21_64_192 and cl21_72_192_b6p7 have no propagators on HPSS.
+- [ ] correlators (cl3 and cl21), then the JLab reconciliation of the cl21 records
 - [ ] checksums: back up to FDP, then `attach_checksums.py --from-dcache`

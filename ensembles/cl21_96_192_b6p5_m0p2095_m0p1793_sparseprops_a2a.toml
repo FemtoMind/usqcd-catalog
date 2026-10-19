@@ -1,0 +1,109 @@
+# Derived dataset: all-to-all sparse propagators on cl21_96_192_b6p5_m0p2095_m0p1793
+# (OLCF Frontier production, 2025-2026)
+#
+# HPSS layout:
+#   clover-iso/cl21_96_192_b6p5_m0p2095_m0p1793/frontier/<TRAJ>.tar (+ .idx)
+#        63 configurations, 98304 members each (11.1 TB):
+#        <TRAJ>/sprop_x<X>y<Y>z<Z>t<T>_uS10.0_S0.0.prop and _uS10.0_S10.0.prop for all
+#        512 positions of the 8^3 sparse grid x 96 source timeslices x point and
+#        width-10.0 sinks (verified: 1000.tar). 96 of the 192 timeslices, which ones
+#        is read from the htar index (lqcd.prop.tsrc_list).
+#   clover-iso/cl21_96_192_b6p5_m0p2095_m0p1793-750/frontier/rocm-5/<TRAJ>.tar (10)
+#   clover-iso/cl21_96_192_b6p5_m0p2095_m0p1793-750/frontier/rocm-6/<TRAJ>.tar (38)
+#        the same layout on stream 750, in directories named for the ROCm version
+#        of the run (lqcd.prop.rocm)
+#   .../frontier/fine-solves/<TRAJ>/t-<T>.tar (+ .idx)   configurations 2000 and 4000:
+#        one archive per source timeslice T = 0, 2, ..., 190 (96 archives of 1024
+#        members: 512 positions x two sinks, 232 GB each), members without the
+#        <TRAJ>/ prefix
+# frontier/correlators-NN, correlators-3pt: correlators, catalogued later.
+# No run XML for the Frontier runs is archived; steps for width 10.0 unrecorded.
+
+[ensemble]
+name = "cl21_96_192_b6p5_m0p2095_m0p1793_sparseprops_a2a"
+parent = "cl21_96_192_b6p5_m0p2095_m0p1793"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl21 96^3x192 beta=6.5 sparse propagators (all-to-all, Frontier)"
+generated_by = "NPLQCD (OLCF Frontier, 2025-2026)"
+code = "Chroma + QUDA"
+description = """\
+All-to-all sparsened light-quark propagators on the \
+cl21_96_192_b6p5_m0p2095_m0p1793 ensemble (Nf=2+1 stout-clover, 96^3 x 192, \
+beta = 6.5, m_l = -0.2095, m_s = -0.1793), produced on OLCF Frontier: for \
+every configuration one htar archive holding the propagators from every site \
+of an 8^3 sparse grid (sparsening factor 12) on 96 of the 192 timeslices, \
+with gauge-invariant Gaussian width-10.0 source smearing and both point and \
+width-10.0 sink smearing (98304 propagators, 11.1 TB per archive); 63 \
+configurations on the main stream and 48 on stream 750, plus a fine-solve \
+set for two configurations stored one source timeslice per archive. The \
+all-to-all variety is the input for matrix-element calculations, meson \
+fields and multi-hadron contractions. Each archive is one catalog record \
+with lqcd.parent.* naming its configuration."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "all-to-all"
+storage_layout = "one htar archive per configuration holding 96 source timeslices (fine-solves: one archive per source timeslice)"
+file_format = "NPLQCD sprop binary, one file per source position, timeslice and sink smearing"
+sparse_grid = "8^3"
+sparsening_factor = 12
+n_sources_per_timeslice = 512
+n_source_timeslices = 96
+source_timeslice_note = "96 of the 192 timeslices; which ones is in lqcd.prop.tsrc_list from the htar index"
+flavors = ["light"]
+member_flavor_prefix = "u = light"
+quark_mass_light = -0.2095
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK and POINT_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 10.0
+sink_smearing_widths = [0.0, 10.0]
+smearing_steps = "unrecorded (no run XML archived for the Frontier runs)"
+smearing_combinations = ["S10.0_S0.0", "S10.0_S10.0"]
+members_per_archive = 98304
+member_bytes = 226492416
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS10.0_S{w_snk}.prop"
+
+[[files]]
+pattern = '^frontier/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar archive of the light-quark all-to-all sparse propagators for one configuration: 512 positions x 96 source timeslices x point and width-10.0 sink smearing (98304 members)."
+
+[[files]]
+pattern = '^frontier/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."
+
+[[files]]
+pattern = '^frontier/rocm-(?P<rocm>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar archive of the light-quark all-to-all sparse propagators for one configuration (512 positions x 96 source timeslices x point and width-10.0 sink smearing, 98304 members); the directory names the ROCm version of the Frontier run (lqcd.prop.rocm)."
+
+[[files]]
+pattern = '^frontier/rocm-(?P<rocm>\d+)/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."
+
+[[files]]
+pattern = '^frontier/fine-solves/(?P<trajectory>\d+)/t-(?P<tsrc>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.variant" = "fine-solves", "lqcd.prop.storage_layout" = "one htar archive per configuration and source timeslice (every second timeslice); members sprop_*.prop without a trajectory prefix", "lqcd.prop.members_per_archive" = 1024 }
+description = "htar archive holding the source-timeslice-tsrc slice of a fine-solve all-to-all sparse propagator set for one configuration: 512 positions x point and width-10.0 sink smearing (1024 members)."
+
+[[files]]
+pattern = '^frontier/fine-solves/(?P<trajectory>\d+)/t-(?P<tsrc>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the fine-solve archive of the same name."

@@ -1,0 +1,79 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl21_72_192_b6p5_m0p2091_m0p1778
+#
+# HPSS layout (clover-iso/cl21_72_192_b6p5_m0p2091_m0p1778{,-600,-700}/sparseprops/):
+#   <TRAJ>.tar (+ .idx)   one htar archive per configuration, 2048 members
+#        <TRAJ>/sprop_x<X>y<Y>z<Z>t0_{u,s}S4.0_S0.0.prop and _S4.0_S4.0.prop: 512
+#        positions of the 8^3 grid x light and strange x point and width-4.0 sinks,
+#        source timeslice 0 (verified on 1000.tar of all three streams), 464 GB
+#   -600/sparseprops/done   bookkeeping, not catalogued
+# Stream 800 has no propagators. No run XML is archived for this ensemble; the
+# contemporaneous cl21_96_192 production (same layout, width 4.0) used wvfIntPar 80
+# with stout link smearing 0.08 x 10 and the QUDA multigrid clover inverter to 1e-12
+# (read from its archived XML), so those are the probable settings here, unverified.
+
+[ensemble]
+name = "cl21_72_192_b6p5_m0p2091_m0p1778_sparseprops"
+parent = "cl21_72_192_b6p5_m0p2091_m0p1778"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl21 72^3x192 beta=6.5 sparse propagators (timeslice-to-all)"
+generated_by = "NPLQCD (W. Detmold et al.; 2024)"
+code = "Chroma + QUDA"
+description = """\
+Timeslice-to-all sparsened light and strange quark propagators on the \
+cl21_72_192_b6p5_m0p2091_m0p1778 ensemble (Nf=2+1 stout-clover, 72^3 x 192, \
+beta = 6.5, m_l = -0.2091, m_s = -0.1778), on streams main, 600 and 700: one \
+htar archive per configuration holding the propagators from every source \
+position of an 8^3 sparse grid (sparsening factor 9) at source timeslice 0 \
+for both flavors, with gauge-invariant Gaussian width-4.0 source smearing \
+and both point and width-4.0 sink smearing (2048 propagators, 464 GB per \
+archive). Each archive is one catalog record with lqcd.parent.* naming its \
+configuration."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+file_format = "NPLQCD sprop binary, one file per source position, flavor and sink smearing"
+sparse_grid = "8^3"
+sparsening_factor = 9
+n_sources_per_timeslice = 512
+source_timeslices = [0]
+flavors = ["light", "strange"]
+member_flavor_prefix = "u = light, s = strange"
+quark_mass_light = -0.2091
+quark_mass_strange = -0.1778
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK and POINT_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 4.0
+sink_smearing_widths = [0.0, 4.0]
+smearing_steps = "unrecorded (no run XML archived here; the same-period cl21_96_192 production used 80 steps for width 4.0 with stout link smearing 0.08 x 10 and the QUDA multigrid clover inverter to 1e-12)"
+smearing_combinations = ["S4.0_S0.0", "S4.0_S4.0"]
+members_per_archive = 2048
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t0_{u|s}S4.0_S{w_snk}.prop"
+
+[streams.main]
+dir = "cl21_72_192_b6p5_m0p2091_m0p1778"
+[streams.600]
+dir = "cl21_72_192_b6p5_m0p2091_m0p1778-600"
+parent_stream = "main"
+parent_trajectory = 600
+[streams.700]
+dir = "cl21_72_192_b6p5_m0p2091_m0p1778-700"
+parent_stream = "main"
+parent_trajectory = 700
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.tsrc" = 0 }
+description = "htar archive of timeslice-to-all sparse propagators for one configuration at source timeslice 0: 512 source positions x light and strange x point and width-4.0 sink smearing (2048 members)."
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."

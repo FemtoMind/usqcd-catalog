@@ -143,6 +143,19 @@ new HPSS listing is needed. Get the smearing and solver numbers from the
 run's own XML (see the sparseprops TOML header for where they were read),
 not from memory. `docs/schema.md` lists the resulting fields.
 
+When archive names do not say what the archives hold (source timeslice
+chosen per configuration, several smearing layouts in one directory), read
+the htar indexes once and build with them:
+
+```
+sbatch bin/sprop_members_xfer.sh work/<parent>/inventory.json 'sparseprops.*/[0-9]+\.tar$' \
+    work/<name>/members.json 6                      # xfer queue; ~1 s per archive, resumable
+python3 scripts/build_records.py ensembles/<name>.toml --archive-index work/<name>/members.json
+```
+
+Each indexed record then carries `lqcd.prop.tsrc_list`, `flavors`,
+`smearing_combinations` and `n_members` read from its own archive.
+
 ## 2. Run the pipeline
 
 ```

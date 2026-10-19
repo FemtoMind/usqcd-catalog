@@ -1,0 +1,132 @@
+# Derived dataset: 2025 smearing-test propagators on cl21_48_96_b6p3_m0p2416_m0p2050
+# (main stream only, clover-iso/cl21_48_96_b6p3_m0p2416_m0p2050/smearingtests/)
+#
+# Kept apart from the production datasets so that production queries do not
+# see them. Member names encode the full smearing setup, e.g.
+#   sprop_x0y0z0t0_fx12fy24fz36ft0_uS7.0N100_S0.0N0_LS0.16LN100.prop
+# = source position, a second (fx, fy, fz, ft) position block, light quark,
+# width-7.0 source smearing with 100 steps, point (0.0, 0 steps) or width-7.0
+# (100 steps) sink, link smearing parameter 0.16 with 100 iterations.
+#   test<N>.tar (+ .idx), N = 1..5     bundles run<N>-sparseprops-t<T>/<TRAJ>/*.prop,
+#                                      run<N>-xml-t<T>/<TRAJ>/*.xml (the hadspec/propagator
+#                                      XML of every solve) and run<N>-out-t<T>/ logs;
+#                                      test1: 342 configurations x 48 members
+#   test4-out.tar                      logs of test 4
+#   run7/sparseprops-t<T>.tar (+ .idx) T = 0..95, random-shift run: one configuration
+#                                      (1300) per archive, 646 members
+#   run7/{out,xml}.tar, *.sh           its logs, XML and batch scripts
+#   run8/sparseprops-t<T>/<TRAJ>.tar   T = 0, 8, 10, 12: 128 members per configuration
+#                                      (64 (fx,fy,fz) blocks x two sinks), 14.5 GB
+#   run8/*.sh                          batch scripts
+#   hadspec_processing_set<N>.tar      hadspec processing output (correlators; not here)
+
+[ensemble]
+name = "cl21_48_96_b6p3_m0p2416_m0p2050_sparseprops_smearingtests"
+parent = "cl21_48_96_b6p3_m0p2416_m0p2050"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl21 48^3x96 beta=6.3 sparse propagators (2025 smearing tests)"
+generated_by = "NPLQCD (NERSC Perlmutter, 2025)"
+code = "Chroma + QUDA"
+description = """\
+Sparse propagators from the 2025 smearing tests on the main stream of the \
+cl21_48_96_b6p3_m0p2416_m0p2050 ensemble (Nf=2+1 stout-clover, 48^3 x 96, \
+beta = 6.3): light-quark timeslice-to-all propagators with width-7.0 \
+gauge-invariant Gaussian source smearing (100 steps), point or width-7.0 \
+sink smearing and link smearing (0.16, 100 iterations), computed for a \
+second position block per source, in several test runs (bundled test1-5 \
+archives with their run XML and logs, run7 random-shift and run8). Kept as \
+a separate dataset from the production propagators. Member names carry the \
+full smearing setup."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+variant = "smearing-test"
+file_format = "NPLQCD sprop binary, one file per source position, second position block and sink smearing"
+flavors = ["light"]
+quark_mass_light = -0.2416
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK and POINT_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 7.0
+smearing_steps = 100
+sink_smearing_widths = [0.0, 7.0]
+link_smearing = "LS0.16LN100 in member names: link smearing parameter 0.16, 100 iterations"
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_fx{fx}fy{fy}fz{fz}ft{tsrc}_uS7.0N100_S{w_snk}N{n_snk}_LS0.16LN100.prop"
+
+[streams.main]
+dir = "cl21_48_96_b6p3_m0p2416_m0p2050"
+
+[[files]]
+pattern = '^smearingtests/test(?P<run>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+meta = { "lqcd.prop.contents" = "run<N>-sparseprops-t<T>/<TRAJ>/*.prop for many configurations, plus run<N>-xml-t<T>/ (Chroma hadspec/propagator XML of every solve) and run<N>-out-t<T>/ logs" }
+description = "htar bundle of one smearing-test run: sparse propagators for several hundred configurations with the Chroma XML and logs of every solve."
+
+[[files]]
+pattern = '^smearingtests/test(?P<run>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+description = "htar index for the smearing-test bundle of the same name."
+
+[[files]]
+pattern = '^smearingtests/test(?P<run>\d+)-out\.tar$'
+kind = "propagator_run_log_archive"
+format = "application/x-tar"
+description = "htar archive of the job logs of one smearing-test run."
+
+[[files]]
+pattern = '^smearingtests/test(?P<run>\d+)-out\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+description = "htar index for the log archive of the same name."
+
+[[files]]
+pattern = '^smearingtests/run7/sparseprops-t(?P<tsrc>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+meta = { "lqcd.prop.run" = 7, "lqcd.prop.variant" = "smearing-test random-shift", "lqcd.prop.members_per_archive" = 646 }
+description = "htar archive of random-shift smearing-test sparse propagators at one source timeslice (configuration 1300)."
+
+[[files]]
+pattern = '^smearingtests/run7/sparseprops-t(?P<tsrc>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+description = "htar index for the run7 archive of the same name."
+
+[[files]]
+pattern = '^smearingtests/run7/xml\.tar$'
+kind = "propagator_run_xml_archive"
+format = "application/x-tar"
+meta = { "lqcd.prop.run" = 7 }
+description = "Tarball of the Chroma input/output XML of every run7 solve."
+
+[[files]]
+pattern = '^smearingtests/run7/out\.tar$'
+kind = "propagator_run_log_archive"
+format = "application/x-tar"
+meta = { "lqcd.prop.run" = 7 }
+description = "Tarball of the run7 job logs."
+
+[[files]]
+pattern = '^smearingtests/run8/sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.run" = 8, "lqcd.prop.members_per_archive" = 128 }
+description = "htar archive of run8 smearing-test sparse propagators for one configuration and source timeslice: 64 second-position blocks x point and width-7.0 sink smearing."
+
+[[files]]
+pattern = '^smearingtests/run8/sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the run8 archive of the same name."
+
+[[files]]
+pattern = '^smearingtests/run(?P<run>\d+)/[^/]+\.sh$'
+kind = "script"
+format = "text/x-shellscript"
+description = "Batch script of the smearing-test run."

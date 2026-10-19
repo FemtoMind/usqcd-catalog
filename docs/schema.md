@@ -214,21 +214,51 @@ because they serve different purposes:
 | `lqcd.artifact.kind` | `lqcd.prop.topology` | what |
 |---|---|---|
 | `sparse_propagator_timeslice_to_all` | `timeslice-to-all` | sources on one timeslice (per archive `lqcd.prop.tsrc`); spectroscopy input |
-| `sparse_propagator_all_to_all` | `all-to-all` | sources on every sparse site of every timeslice, stored one source timeslice per archive; matrix elements and meson fields |
+| `sparse_propagator_all_to_all` | `all-to-all` | sources on every sparse site of every timeslice (or every second one), stored one configuration per archive (cl21 Frontier sets) or one source timeslice per archive (cl3_32_48, fine-solves); matrix elements and meson fields |
+| `sparse_propagator_timeslice_to_self` | `timeslice-to-self` | the equal-time blocks S((x,t),(y,t)) of an all-to-all set, packed as self-checking HDF5 (cl21_48_96 Frontier); lives in the all-to-all dataset it was derived from |
 
 Alongside: `propagator_run_xml_archive` (the Chroma input/output XML of
-every solve, which is where smearing and solver settings are verified) and
-`archive_index` (htar `.idx`). One archive normally holds all source
-positions for one configuration and one source timeslice, members
-`<traj>/sprop_x<X>y<Y>z<Z>t<T>_uS<w_src>_S<w_snk>.prop`; range archives
-(100 configurations) carry `lqcd.trajectory_min/max` instead.
+every solve, which is where smearing and solver settings are verified),
+`propagator_run_log_archive`, `archive_index` (htar `.idx`), and the
+occasional `documentation`, `script` and `production_scripts_archive`
+record for READMEs, checkers and production scripts stored next to the
+data. One archive normally holds all source positions for one
+configuration and one source timeslice, members
+`<traj>/sprop_x<X>y<Y>z<Z>t<T>_<f>S<w_src>_S<w_snk>.prop` with `<f>` = `u`
+(light) or `s` (strange); range archives (100 configurations) carry
+`lqcd.trajectory_min/max` instead. Test productions (cl21_48_96 smearing
+tests) get a dataset of their own so production queries never see them.
 
 `lqcd.prop.*` fields: `kind`, `topology`, `file_format`, `sparse_grid`,
 `sparsening_factor`, `n_sources_per_timeslice`, `source_timeslices` (or
-`n_source_timeslices` for all-to-all), `source_type`, `sink_type`,
-`smearing_kind`, `smearing_width`, `smearing_steps`, `smearing_steps_source`,
-`link_smearing`, `solver`, `solver_rsd_target`, `solver_max_iter`,
-`quark_mass`, `member_name_template`, `members_per_archive`, and per file
-`tsrc`, `variant` (solver variant or `point-source`), `generation` (when
-several productions coexist, e.g. cl3_32_48). Correlators will follow the
+`n_source_timeslices` for all-to-all), `flavors` (`light`, `strange`),
+`quark_mass_light` / `quark_mass_strange`, `source_type`, `sink_type`,
+`smearing_kind`, `smearing_width` / `smearing_widths`, `sink_smearing_widths`,
+`smearing_steps`, `smearing_steps_source`, `link_smearing`, `solver`,
+`solver_rsd_target`, `solver_max_iter`, `clover_coefficient`,
+`member_name_template`, `members_per_archive`, `member_bytes`,
+`storage_layout`, and per file `tsrc`, `variant` (solver variant,
+`point-source`, `original-run`, `multi-timeslice`, `fine-solves`, ...),
+`generation` (a label telling coexisting productions of the same kind
+apart, e.g. `2021-tacc` / `2024-2025` / `2020-hdf5` on cl3_32_48, where
+the three differ in smearing and file format). Correlators will follow the
 same pattern with `lqcd.corr.*`.
+
+**What an archive actually holds.** Directory names are nominal: on
+cl21_48_96 the 2025 sets under `sparseprops-t0/` use one random source
+timeslice per configuration, and on cl21_64_128 the `sparseprops/`
+archives carry no timeslice in their name at all. `scripts/sprop_members.py`
+(xfer-queue wrapper `bin/sprop_members_xfer.sh`) reads every archive's htar
+index and `build_records.py --archive-index` puts the result on the record,
+overriding the nominal values:
+
+| field | from the member names |
+|---|---|
+| `lqcd.prop.n_members` | number of members |
+| `lqcd.prop.tsrc_list` (and `tsrc` when there is one) | source timeslices present |
+| `lqcd.prop.flavors` | `u` -> `light`, `s` -> `strange` |
+| `lqcd.prop.smearing_combinations` | `S<w_src>_S<w_snk>` values present |
+| `lqcd.prop.n_positions`, `member_bytes` | distinct source sites, size of one member |
+
+Archives without a readable `.idx` keep the nominal values. `lqcd.status`
+flags archives the producer marked (`UNINDEXED_`, `BROKEN`, stale index).

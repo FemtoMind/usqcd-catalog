@@ -18,7 +18,14 @@
 #SBATCH -L scratch
 
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Under sbatch, BASH_SOURCE is Slurm's spool copy of this script, so find the
+# repo from the submitted script's path instead.
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+    script="$(scontrol show job "$SLURM_JOB_ID" | sed -n 's/^ *Command=\([^ ]*\).*/\1/p')"
+else
+    script="${BASH_SOURCE[0]}"
+fi
+here="$(cd "$(dirname "$script")/.." && pwd)"
 members="$1"; stream="$2"; stage="$3"; out="$4"; shift 4
 mkdir -p "$here/slurm_logs"
 module load python          # NERSC python has h5py + numpy

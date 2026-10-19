@@ -140,6 +140,8 @@ def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
     # A rule may capture a trajectory *range* instead (archives holding many configs).
     tmin = int(groups["trajectory_min"]) if "trajectory_min" in groups else None
     tmax = int(groups["trajectory_max"]) if "trajectory_max" in groups else None
+    if traj is not None and tmin == tmax == traj:   # an index confirming a one-configuration archive
+        tmin = tmax = None
     hpss_path = f["path"]
 
     if traj is not None:
@@ -190,7 +192,10 @@ def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
             md["lqcd.md_time_min"] = round(tmin * tau0, 6)
             md["lqcd.md_time_max"] = round(tmax * tau0, 6)
     if "n_members" in groups:  # from an htar index (build_records.py --archive-index)
-        md["lqcd.n_configs_in_archive"] = int(groups["n_members"])
+        if ens["ensemble"].get("parent"):
+            md["lqcd.prop.n_members"] = int(groups["n_members"])   # propagators (members) per archive
+        else:
+            md["lqcd.n_configs_in_archive"] = int(groups["n_members"])
     # Any other named regex group becomes lqcd.<rule.group_prefix>.<group>
     # (default prefix "prop"), e.g. (?P<tsrc>\d+) -> lqcd.prop.tsrc.
     reserved = {"trajectory", "trajectory_min", "trajectory_max", "stream", "n_members"}
@@ -201,6 +206,13 @@ def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
     # Rule-level constant metadata ([files.meta] in the TOML), keys given in full.
     for k, v in (rule.get("meta") or {}).items():
         md[k] = v
+    # What the archive's member names say (sprop_members.py via --archive-index)
+    # overrides the nominal values from directory names and rule meta: source
+    # timeslices, flavors, smearing combinations, member count and size.
+    for k, v in (f.get("_prop_index") or {}).items():
+        md[f"lqcd.prop.{k}"] = v
+        if k == "tsrc_list" and len(v) == 1:
+            md["lqcd.prop.tsrc"] = v[0]
     # Derived products point back at the configuration they were computed on.
     parent = ens["ensemble"].get("parent")
     if parent:
@@ -262,7 +274,7 @@ def main() -> int:
     if args.archive_index:
         for arc, v in read_json(args.archive_index)["archives"].items():
             archive_index[arc] = {"trajectory_min": v["trajectory_min"], "trajectory_max": v["trajectory_max"],
-                                  "n_members": v["n_members"]}
+                                  "n_members": v["n_members"], "prop": v.get("prop")}
 
     # First pass: classify, so the dataset record can carry per-stream counts.
     # A rule may capture a (?P<stream>...) group; that overrides the directory's
@@ -291,7 +303,10 @@ def main() -> int:
             if want_kinds and rule["kind"] not in want_kinds:
                 continue
             if f["path"] in archive_index:
-                groups = dict(groups, **{k: str(v) for k, v in archive_index[f["path"]].items() if v is not None})
+                idx = archive_index[f["path"]]
+                groups = dict(groups, **{k: str(v) for k, v in idx.items() if v is not None and k != "prop"})
+                if idx.get("prop"):   # sprop_members.py: what the archive's member names say
+                    f = dict(f, _prop_index=idx["prop"])
             label = groups.get("stream", dir_label)
             classified.append((label, dir_label, f, rule, groups))
             s = per_stream.setdefault(label, {"n_configs": 0, "n_config_archives": 0, "n_files": 0,
