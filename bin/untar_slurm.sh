@@ -1,0 +1,26 @@
+#!/bin/bash
+# Unpack a manifest's tarballs on a Perlmutter CPU node (not a login node).
+#
+#   sbatch bin/untar_slurm.sh <manifest.json> <dest-root> [dest-template] [jobs]
+#
+# e.g.
+#   sbatch bin/untar_slurm.sh work/cl21_nucleon/manifest.json \
+#       /pscratch/sd/m/mlwagman/correlators/cl21_nucleon "{dir_name}/{basename}" 16
+#
+# Re-runnable: untar_manifest.py skips tarballs with an .extracted marker and
+# ignores ones the transfer has not delivered yet, so submit this again after
+# each Globus task finishes.
+#SBATCH -A m747
+#SBATCH -C cpu
+#SBATCH -q regular
+#SBATCH -N 1
+#SBATCH -t 06:00:00
+#SBATCH -J untar_manifest
+#SBATCH -o slurm_logs/untar-%j.out
+
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$(sed -n 's/^python *= *"\(.*\)".*/\1/p' "$here/catalog.toml" | head -1)"
+mkdir -p "$here/slurm_logs"
+"${PY:-python3}" "$here/scripts/untar_manifest.py" "$1" --dest-root "$2" \
+    --dest-template "${3:-{dir_name}/{rel_path}}" --jobs "${4:-16}"

@@ -1,0 +1,5 @@
+# Only declare_records.py and retrieve_records.py need anything beyond the
+# standard library (Python >= 3.11 for tomllib). Install with
+#   pip install -r requirements.txt            (into a venv, or --user)
+metacat-client>=4.0     # MetaCat Python API + `metacat` CLI (auth, query)
+globus-cli>=3.30        # only for the data-transfer step, not for metadata

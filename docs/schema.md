@@ -1,0 +1,123 @@
+# Metadata schema for USQCD gauge ensembles in MetaCat
+
+The AmSC catalog validates only `AmSC.common.*`. Everything under `lqcd.*` is
+our convention; this document and `build_records.py` are its only enforcement.
+Field names are flat dotted paths so every value is usable in MQL
+(`lqcd.mass.light = -0.1788`, `lqcd.stream in ("a","b")`).
+
+## What is required, what is optional
+
+USQCD groups use many actions, so **no physics field is mandatory**. The
+writer only insists on:
+
+| | Required | Default if absent |
+|---|---|---|
+| ensemble TOML | `[ensemble].name` | |
+| | `[streams]` | one stream `main` in directory `<name>` |
+| | `[[files]]` rules | the NPLQCD/Chroma layout rules (`cfgs/*_cfg_N.lime`, `cfgs/*_restart_N.xml`, `log.N.tar`) |
+| | `[lqcd]` | empty: records carry only identity + storage fields |
+| file record | `lqcd.ensemble`, `lqcd.artifact.kind`, `lqcd.stream`, `AmSC.common.*`, `lqcd.storage.*` | |
+| | `lqcd.trajectory` | absent when the matching file rule has no `trajectory` group |
+| | `lqcd.md_time` | absent unless `lqcd.hmc.tau0` is given |
+
+Everything in the physics table below is optional and action-specific; the
+isotropic clover (isoclover) set is listed in full because that is what the
+NPLQCD ensembles use, but a HISQ or DWF ensemble would simply use different
+keys (`lqcd.action.fermion = "HISQ"`, `lqcd.mass.charm`, `lqcd.dwf.Ls`, ...).
+
+## Mass and kappa
+
+Either `[lqcd.mass]` or `[lqcd.kappa]` (per flavor: `light`, `strange`,
+`charm`, ...) may be given. For isotropic Wilson-type actions
+(`lqcd.action.fermion` in wilson/clover and not anisotropic) the writer fills in
+the other via kappa = 1 / (2 (m0 + 4)) and records which was the input in
+`lqcd.mass.input_convention` (`"mass"`, `"kappa"`, `"both"`). Both fields end
+up on every record, so either is queryable directly.
+
+The reader (`retrieve_records.py --mass X` or `--kappa X`) searches **both**
+fields with a tolerance, so records written by a group that stored only one
+representation are still found. The conversion is not applied for anisotropic
+actions (where xi and nu enter) or non-Wilson actions.
+
+## Dataset record (one per ensemble)
+
+| Field | Value |
+|---|---|
+| `AmSC.common.type` | `"scientificWork"` |
+| `AmSC.common.description` | Prose: action, volume, parameters, who/where/when, streams, file layout. The only field the FDP web UI shows. |
+| `AmSC.common.display_name` | short label |
+| `lqcd.artifact.kind` | `"gauge_ensemble"` |
+| `lqcd.ensemble` | ensemble name, same as the dataset name |
+| `lqcd.collaboration`, `lqcd.generated_by`, `lqcd.machine`, `lqcd.code`, `lqcd.year` | provenance |
+| `lqcd.streams` | list of stream labels, e.g. `["main","a","b","c"]` |
+| `lqcd.n_streams`, `lqcd.n_configs` | counts at catalog time |
+| `lqcd.stream_summary` | list of strings `"<stream>: N configs, traj lo-hi"` |
+| `lqcd.catalog.schema_version` | `1` |
+| `lqcd.catalog.updated_at` | ISO timestamp of the last `build_records.py` |
+| `lqcd.<physics>` | everything from the ensemble TOML `[lqcd]` table, flattened (below) |
+
+## Physics fields (dataset and every file)
+
+Taken verbatim from the Chroma HMC input. Names follow the existing
+`amsc-fetch` convention where one existed.
+
+| Field | Type | Example (cl3_32_64_b6p5_m0p1788) |
+|---|---|---|
+| `lqcd.nflavors` | int | `3` |
+| `lqcd.flavor_structure` | str | `"3 degenerate (m_u = m_d = m_s)"` |
+| `lqcd.beta` | float | `6.5` |
+| `lqcd.Nx`, `lqcd.Ny`, `lqcd.Nz`, `lqcd.Nt` | int | `32, 32, 32, 64` |
+| `lqcd.volume` | int[4] | `[32,32,32,64]` (display only) |
+| `lqcd.action.gauge` | str | `"LW_TREE"` (tree-level Luscher-Weisz) |
+| `lqcd.action.gauge_u0` | float | `0.85703554213273` |
+| `lqcd.action.fermion` | str | `"clover"` |
+| `lqcd.action.fermion_state` | str | `"STOUT_FERM_STATE"` |
+| `lqcd.action.csw` | float | `1.170082389372972` |
+| `lqcd.action.anisotropic` | bool | `false` |
+| `lqcd.action.fermion_bc` | str | `"1 1 1 -1"` |
+| `lqcd.mass.light`, `lqcd.mass.strange` | float | `-0.1788` (bare m0, lattice units, Chroma `<Mass>`) |
+| `lqcd.kappa.light`, `lqcd.kappa.strange` | float | `0.130848948` (derived if only mass given, or vice versa) |
+| `lqcd.mass.input_convention` | str | `"mass"` |
+| `lqcd.smearing.type`, `.rho`, `.n_smear` | str, float, int | `"stout", 0.125, 1` |
+| `lqcd.hmc.tau0` | float | `1.414` |
+| `lqcd.hmc.integrator`, `.n_steps`, `.gauge_substeps` | str, int, int | `"LCM_STS_MIN_NORM_2", 16, 5` |
+| `lqcd.hmc.save_interval` | int | `10` |
+| `lqcd.hmc.n_warmup_updates` | int | `100` |
+| `lqcd.hmc.rational_lower_min`, `.rational_upper_max` | float | `0.003, 32` |
+| `lqcd.hmc.code_version` | str | |
+
+## File record (one per stored file)
+
+| Field | Value |
+|---|---|
+| `name` | file basename; must be unique in the namespace (stream suffix is in the name) |
+| `size` | bytes from the HPSS listing |
+| `checksums` | absent (see README) |
+| `AmSC.common.type` | `"artifact"` |
+| `AmSC.common.description` | prose: what, which stream/trajectory, ensemble summary, where stored |
+| `AmSC.common.display_name` | `"<ensemble> <stream> <kind> <trajectory>"` |
+| `AmSC.common.location` | `globus://<storage collection uuid><absolute path>` |
+| `AmSC.artifact.format` | `application/x-lime`, `application/xml`, `application/x-tar` |
+| `lqcd.artifact.kind` | `gauge_config` \| `hmc_input` \| `hmc_log_archive` |
+| `lqcd.ensemble` | ensemble name |
+| `lqcd.stream` | stream label from the TOML (`main`, `a`, ...) |
+| `lqcd.stream_dir` | storage directory name of the stream |
+| `lqcd.stream_parent_stream`, `lqcd.stream_parent_trajectory` | only when the TOML states the branch point |
+| `lqcd.trajectory` | int, the configuration number in the file name (HMC update count within the stream) |
+| `lqcd.md_time` | `trajectory * lqcd.hmc.tau0` |
+| `lqcd.storage.system`, `.site` | `"hpss"`, `"NERSC"` |
+| `lqcd.storage.path` | absolute path on that system (what `hsi get` takes) |
+| `lqcd.storage.filename` | original basename (the catalog `name` may be stream-prefixed, see adding_an_ensemble.md) |
+| `lqcd.storage.globus_collection` | collection UUID (same as in the location URL) |
+| `lqcd.storage.mtime`, `.owner` | from the listing |
+| `lqcd.<physics>` | all physics fields above, copied from the dataset |
+
+Fields FNAL adds after ingest (`fn.locations`, `AmSC.common.fqn`, `.tags`,
+`.version`) are never set here and are ignored by `retrieve_records.py --diff`.
+
+## Reserved for the next artifact kinds
+
+Propagators and correlators will reuse the ensemble/stream/trajectory keys and
+add `lqcd.parent.kind = "gauge_config"`, `lqcd.parent.ensemble`,
+`lqcd.parent.stream`, `lqcd.parent.trajectory` (and `lqcd.parent.sha256` once
+checksums exist), plus kind-specific fields (`lqcd.prop.*`, `lqcd.corr.*`).

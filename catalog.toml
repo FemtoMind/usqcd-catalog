@@ -1,0 +1,88 @@
+# Site configuration for the usqcd-catalog scripts.
+#
+# This file describes *where you are* (which catalog, which storage system,
+# which Python). Ensemble physics lives in ensembles/<name>.toml, not here.
+# Copy this file and edit it for your own site; nothing in scripts/ hard-codes
+# a path or UUID.
+
+[venv]
+# Interpreter with metacat-client (and globus-cli for transfers). Python >= 3.11
+# is required for the stdlib TOML reader. Built with:
+#   python3 -m venv ~/.amsc-fetch/venv
+#   ~/.amsc-fetch/venv/bin/pip install metacat-client globus-cli
+# Keep the venv on a filesystem that is not purged (home, not scratch).
+python = "/global/homes/m/mlwagman/.amsc-fetch/venv/bin/python3"
+
+[metacat]
+server_url = "https://metacat.fnal.gov:9443/amsc_meta_prod/app"
+# All LQCD records go in one namespace; one dataset per ensemble.
+namespace = "lqcd"
+# Reads are anonymous. Declaring/updating needs a token; this helper gets one
+# (interactive password login with your FNAL Services username; set
+# METACAT_USER if it differs from your local login).
+auth_helper = "bin/metacat_login.sh"
+
+# Storage systems the files may live on. An ensemble file names one of these
+# by key (ensemble.storage = "nersc_hpss"). The Globus collection UUID is what
+# lets AmSC.common.location be a globus://<uuid>/<path> URL that any Globus
+# user with access can transfer from without knowing the site's tools.
+[storage.nersc_hpss]
+system = "hpss"
+site = "NERSC"
+globus_collection = "9cd89cfd-6d04-11e5-ba46-22000b92c6ec"
+globus_label = "NERSC HPSS"
+# Listing tool and the root under which ensemble stream directories live.
+hsi = "hsi"
+root = "/home/w/wdetmold/clover-iso"
+
+# Other places LQCD data lives or can be backed up to (from
+# amsc_lqcd_globus_notes.txt). Not used by the metadata steps; listed so a
+# transfer step can refer to them by key and so the UUIDs live in one place.
+[storage.fdp_lqcd]
+system = "dcache"
+site = "FNAL"
+globus_collection = "0c1b254b-e32d-409c-bfe3-4a81fef25892"
+globus_label = "Fermi Data Platform LQCD"   # mapped collection; needs data_access consent + session reauth
+root = "/amsc/lqcd"
+https_base = "https://amsc.fnal.gov:2880"
+
+[storage.fdp_public]
+system = "dcache"
+site = "FNAL"
+globus_collection = "73edb319-d876-4143-b5fc-5a47c61b0c02"
+globus_label = "Fermi Data Platform Public Data"   # guest collection; anonymous reads, no consent
+root = "/amsc/public/lqcd"
+
+[storage.nersc_dtn]
+system = "posix"
+site = "NERSC"
+globus_collection = "9d6d994a-6d04-11e5-ba46-22000b92c6ec"
+globus_label = "NERSC DTN"   # pscratch / CFS; high-assurance, needs `globus session update nersc.gov`
+root = "/pscratch/sd/m/mlwagman"
+
+[storage.bnl_sdcc]
+system = "posix"
+site = "BNL"
+globus_collection = "12782fb1-a599-4f18-b0fb-2e849681e214"
+globus_label = "BNL SDCC"
+root = ""
+
+[storage.jlab_scidtn1]
+system = "posix"
+site = "JLab"
+globus_collection = "81b20848-b468-11e9-98d4-0a63aa6b37da"
+globus_label = "JLab SCIDTN1"   # unverified
+root = ""
+
+[storage.fnal_lq2]
+system = "posix"
+site = "FNAL"
+globus_collection = "1bfdb131-876d-482b-94a2-ed9e1b142791"
+globus_label = "Fermilab LQ2"
+root = ""
+
+[defaults]
+collaboration = "NPLQCD"
+# Per-ensemble working files (inventory.json, records.json, catalog dumps)
+# are written under <work_dir>/<ensemble>/. They are generated; do not edit.
+work_dir = "work"
