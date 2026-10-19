@@ -221,6 +221,9 @@ work/                   generated per-ensemble JSON (gitignored)
       (`docs/open_questions.md`, item 10).
 - [ ] cl21 beta=6.1 directories (cl21_24_64, cl21_32_96, cl21_48_96_b6p1_a..g) hold only
       2012-2015 analysis output (contraction databases, hadspec, blocks), no configurations
-- [ ] sparse propagators and correlators (new `lqcd.artifact.kind` values and
-      `lqcd.parent.*` provenance back to the gauge configs)
+- [x] derived datasets: `ensembles/<ens>_<product>.toml` with `parent = "<ens>"`, records
+      carry `lqcd.parent.*` back to the configuration; first one
+      `lqcd:cl3_48_96_b6p5_m0p1788_sparseprops` (10066 records, 58.7 TB) declared 2026-10-19
+- [ ] sparse propagators for the other ensembles (layouts surveyed; see docs/schema.md
+      "Derived datasets"), then correlators
 - [ ] checksums: back up to FDP, then `attach_checksums.py --from-dcache`

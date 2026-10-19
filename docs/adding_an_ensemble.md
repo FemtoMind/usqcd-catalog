@@ -114,6 +114,35 @@ description = "Gauge configuration in SciDAC/ILDG LIME format."
   python3 scripts/build_records.py ensembles/<name>.toml --archive-index work/<name>/members.json
   ```
 
+## Derived datasets (propagators, correlators)
+
+A product computed on an ensemble gets its own TOML and dataset,
+`ensembles/<ens>_<product>.toml`, with
+
+```toml
+[ensemble]
+name = "cl3_48_96_b6p5_m0p1788_sparseprops"
+parent = "cl3_48_96_b6p5_m0p1788"     # inherits [lqcd] and [streams] from ensembles/<parent>.toml
+kind = "sparse_propagator_set"        # dataset-level lqcd.artifact.kind
+name_style = "path"                   # catalog names "<stream dir>/<path>", since 1000.tar repeats per subdir
+
+[derived.prop]                        # facts about the product, flattened to lqcd.prop.* on every record
+smearing_width = 6.0
+smearing_steps = 150
+# ...
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'   # extra groups -> lqcd.prop.tsrc
+kind = "sparse_propagator_archive"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"       # -> lqcd.parent.name / .did
+meta = { "lqcd.prop.variant" = "chroma-props" }                    # constants for this rule
+```
+
+`build_records.py` reuses the parent's `work/<parent>/inventory.json`, so no
+new HPSS listing is needed. Get the smearing and solver numbers from the
+run's own XML (see the sparseprops TOML header for where they were read),
+not from memory. `docs/schema.md` lists the resulting fields.
+
 ## 2. Run the pipeline
 
 ```

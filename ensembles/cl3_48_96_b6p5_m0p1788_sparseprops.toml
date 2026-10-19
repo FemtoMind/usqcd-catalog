@@ -1,0 +1,109 @@
+# Derived dataset: sparse quark propagators on cl3_48_96_b6p5_m0p1788
+#
+# A derived dataset names its parent ensemble and inherits the parent's
+# physics and streams; every record carries lqcd.parent.* pointing at the
+# configuration it was computed on. Catalog names are "<stream dir>/<path>"
+# (name_style = "path") because basenames like 1000.tar repeat across the
+# per-source-timeslice directories.
+#
+# HPSS layout (clover-iso/cl3_48_96_b6p5_m0p1788/):
+#   sparseprops-t<TSRC>/<TRAJ>.tar          one archive per configuration and
+#                                            source timeslice; htar (.idx) for
+#                                            t24/t48/t72, plain tar otherwise
+#   sparseprops-t0/{chroma-props,qc-props}/<TRAJ>.tar   two solver variants at t=0
+#   xml-t<TSRC>/<TRAJ>.tar                   the Chroma input/output XML of every
+#                                            propagator solve for that config
+# Inside an archive: <TRAJ>/sprop_x<X>y<Y>z<Z>t<T>_uS6.0_S6.0.prop, one file per
+# source position on the 6^3 sparse grid (216 per timeslice, 47.8 MB each).
+#
+# Smearing/solver numbers verbatim from
+# xml-t24/1000.tar: 1000/cl3_48_96_b6p5_m0p1788_x8y40z32t24_S6.0_S6.0.xml
+# (chroma 3.44.1): gauge-invariant Gaussian source and sink smearing,
+# wvf_param 6.0, wvfIntPar 150, no displacement, no link smearing in the
+# source; RELIABLE_IBICGSTAB_MP_CLOVER_INVERTER, RsdTarget 1e-12, MaxIter 20000.
+
+[ensemble]
+name = "cl3_48_96_b6p5_m0p1788_sparseprops"
+parent = "cl3_48_96_b6p5_m0p1788"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 48^3x96 beta=6.5 sparse propagators"
+generated_by = "NPLQCD (W. Detmold, A. Grebe)"
+code = "Chroma 3.44.1 + QUDA"
+description = """\
+Sparsened quark propagators on the cl3_48_96_b6p5_m0p1788 ensemble (Nf=3 \
+stout-clover, 48^3 x 96, beta = 6.5, m = -0.1788): one archive per gauge \
+configuration and source timeslice (t = 0, 12, 24, 36, 48, 60, 72, 84), each \
+holding the propagators from every source position on a 6^3 sparse grid \
+(sparsening factor 8) with gauge-invariant Gaussian source and sink smearing \
+of width 6.0 and 150 steps, solved with the QUDA reliable IBiCGStab \
+multi-precision clover inverter to 1e-12. The Chroma XML of every solve is \
+archived alongside. Input to the NPLQCD H-dibaryon and nucleon correlators. \
+Stored on NERSC HPSS; each archive is one catalog record with lqcd.parent.* \
+naming the configuration it was computed on."""
+
+# Dataset-level facts about the product (flattened to lqcd.*).
+[derived.prop]
+kind = "sparse_propagator"
+file_format = "NPLQCD sprop binary, one file per source position"
+sparse_grid = "6^3"
+sparsening_factor = 8
+n_sources_per_timeslice = 216
+source_timeslices = [0, 12, 24, 36, 48, 60, 72, 84]
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 6.0
+smearing_steps = 150
+link_smearing = "none"
+solver = "RELIABLE_IBICGSTAB_MP_CLOVER_INVERTER"
+solver_rsd_target = 1e-12
+solver_max_iter = 20000
+quark_mass = -0.1788
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS6.0_S6.0.prop"
+
+# Rules. Named groups other than trajectory/stream become lqcd.prop.<group>.
+# [files.meta] adds constant fields to every record the rule produces.
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_archive"
+format = "application/x-tar"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
+description = "Archive of sparse propagators for one configuration and one source timeslice: 216 sprop files, one per source position on the 6^3 grid. htar archives (with .idx alongside) allow single-member extraction."
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."
+
+[[files]]
+pattern = '^sparseprops-t0/chroma-props/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_archive"
+format = "application/x-tar"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.tsrc" = 0, "lqcd.prop.variant" = "chroma-props" }
+description = "Archive of sparse propagators at source timeslice 0, Chroma solver variant."
+
+[[files]]
+pattern = '^sparseprops-t0/qc-props/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_archive"
+format = "application/x-tar"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.tsrc" = 0, "lqcd.prop.variant" = "qc-props" }
+description = "Archive of sparse propagators at source timeslice 0, qc solver variant."
+
+[[files]]
+pattern = '^xml-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "propagator_run_xml_archive"
+format = "application/x-tar"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
+description = "Tarball of the Chroma input/output XML for every propagator solve on this configuration and source timeslice (source position, smearing, solver, full action)."
+
+[[files]]
+pattern = '^xml-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
+description = "htar index for the XML archive of the same name."

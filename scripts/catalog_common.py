@@ -70,6 +70,23 @@ def load_ensemble(path: str | os.PathLike) -> dict:
     if "ensemble" not in ens or "name" not in ens["ensemble"]:
         sys.exit(f"{path}: [ensemble] with a name is required")
     name = ens["ensemble"]["name"]
+    # A derived dataset (sparse propagators, correlators, ...) names its parent
+    # ensemble; it inherits the parent's physics ([lqcd]) and, unless it says
+    # otherwise, its streams, so its records are self-describing and point back.
+    parent = ens["ensemble"].get("parent")
+    if parent:
+        ppath = Path(path).resolve().parent / f"{parent}.toml"
+        if not ppath.exists():
+            ppath = REPO_ROOT / "ensembles" / f"{parent}.toml"
+        if not ppath.exists():
+            sys.exit(f"{path}: parent ensemble TOML not found: {parent}.toml")
+        pens = load_toml(ppath)
+        ens["_parent"] = pens
+        ens.setdefault("lqcd", pens.get("lqcd", {}))
+        if not ens.get("streams"):
+            ens["streams"] = {k: dict(v) for k, v in pens.get("streams", {}).items()}
+        for key in ("storage", "collaboration"):
+            ens["ensemble"].setdefault(key, pens["ensemble"].get(key))
     ens.setdefault("lqcd", {})
     if not ens.get("streams"):
         ens["streams"] = {"main": {"dir": name}}

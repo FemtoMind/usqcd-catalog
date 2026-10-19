@@ -54,12 +54,14 @@ from catalog_common import (  # noqa: E402
 
 def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict) -> dict:
     e = ens["ensemble"]
+    parent = e.get("parent")
     md = {
         "AmSC.common.type": "scientificWork",
         "AmSC.common.description": e["description"].strip(),
         "AmSC.common.display_name": e.get("display_name", e["name"]),
-        "lqcd.artifact.kind": "gauge_ensemble",
-        "lqcd.ensemble": e["name"],
+        # A derived dataset says what it holds and which ensemble it belongs to.
+        "lqcd.artifact.kind": e.get("kind", "gauge_ensemble" if not parent else "derived_dataset"),
+        "lqcd.ensemble": parent or e["name"],
         "lqcd.collaboration": e.get("collaboration", cfg["defaults"].get("collaboration", "")),
         "lqcd.generated_by": e.get("generated_by", ""),
         "lqcd.machine": e.get("machine", ""),
@@ -73,6 +75,13 @@ def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict) -> dict:
     }
     md.update(flatten(ens["lqcd"], "lqcd"))
     complete_mass_kappa(md)
+    if parent:
+        md["lqcd.parent.kind"] = "gauge_ensemble"
+        md["lqcd.parent.ensemble"] = parent
+        md["lqcd.parent.dataset"] = f'{cfg["metacat"]["namespace"]}:{parent}'
+    # Dataset-level facts about a derived product ([derived] table, flattened).
+    if ens.get("derived"):
+        md.update(flatten(ens["derived"], "lqcd"))
     # Downstream observables ([observables] table): dataset-level only, flattened
     # to lqcd.obs.<name>.<field>. lqcd.obs.list names the registered observables.
     obs = ens.get("observables") or {}
@@ -112,12 +121,14 @@ NAME_OK = re.compile(r"^[A-Za-z0-9._/-]+$")
 
 
 def describe_counts(s: dict) -> str:
-    """'422 configs' | '5 config archives' | '4010 configs in 1 archive'."""
+    """'422 configs' | '5 config archives' | '4010 configs in 1 archive' | '1534 files'."""
     n, a = s["n_configs"], s["n_config_archives"]
     if a and n:
         return f"{n} configs in {a} archive{'s' if a != 1 else ''}"
     if a:
         return f"{a} config archive{'s' if a != 1 else ''}"
+    if not n and s.get("n_files"):
+        return f"{s['n_files']} files"
     return f"{n} configs"
 
 
@@ -142,9 +153,10 @@ def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
         "gauge_config_archive": f"Archive of gauge configurations{where}",
         "hmc_input": f"HMC restart input XML for{where.replace(', ', ' ')}",
         "hmc_log_archive": f"HMC log/measurement tarball through{where.replace(', trajectory', ' trajectory')}",
-    }.get(kind, f"{kind} file{where}")
+    }.get(kind, f"{kind.replace('_', ' ').capitalize()}{where}")
+    ensemble_name = ens["ensemble"].get("parent") or name   # derived products belong to the parent ensemble
     description = (
-        f"{what} of stream '{stream_label}' of ensemble {name}{physics_summary(ens_md)}. "
+        f"{what} of stream '{stream_label}' of ensemble {ensemble_name}{physics_summary(ens_md)}. "
         f"{rule.get('description', '')} "
         f"Stored on {storage['site']} {storage['system'].upper()} at {hpss_path} "
         f"(Globus collection '{storage['globus_label']}')."
@@ -179,6 +191,31 @@ def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
             md["lqcd.md_time_max"] = round(tmax * tau0, 6)
     if "n_members" in groups:  # from an htar index (build_records.py --archive-index)
         md["lqcd.n_configs_in_archive"] = int(groups["n_members"])
+    # Any other named regex group becomes lqcd.<rule.group_prefix>.<group>
+    # (default prefix "prop"), e.g. (?P<tsrc>\d+) -> lqcd.prop.tsrc.
+    reserved = {"trajectory", "trajectory_min", "trajectory_max", "stream", "n_members"}
+    gprefix = rule.get("group_prefix", "prop")
+    for g, v in groups.items():
+        if g not in reserved:
+            md[f"lqcd.{gprefix}.{g}"] = int(v) if str(v).isdigit() else v
+    # Rule-level constant metadata ([files.meta] in the TOML), keys given in full.
+    for k, v in (rule.get("meta") or {}).items():
+        md[k] = v
+    # Derived products point back at the configuration they were computed on.
+    parent = ens["ensemble"].get("parent")
+    if parent:
+        md["lqcd.parent.kind"] = "gauge_config"
+        md["lqcd.parent.ensemble"] = parent
+        md["lqcd.parent.stream"] = stream_label
+        if traj is not None:
+            md["lqcd.parent.trajectory"] = traj
+        tmpl = rule.get("parent_name") or ens["ensemble"].get("parent_name")
+        if tmpl and traj is not None:
+            fields = dict(groups)
+            fields.update(stream_dir=stream["dir"].rsplit("/", 1)[-1], stream=stream_label, trajectory=traj)
+            pname = tmpl.format(**fields)
+            md["lqcd.parent.name"] = pname
+            md["lqcd.parent.did"] = f"{ens['_ns']}:{pname}"
     # Stream provenance, only when the TOML states it.
     for k in ("parent_stream", "parent_trajectory"):
         if k in stream:
@@ -209,9 +246,14 @@ def main() -> int:
     name = ens["ensemble"]["name"]
     storage = storage_for(cfg, ens)
     wd = work_dir(cfg, name)
-    inv = read_json(args.inventory or wd / "inventory.json")
-    if inv["ensemble"] != name:
+    parent = ens["ensemble"].get("parent")
+    inv_path = args.inventory or wd / "inventory.json"
+    if not Path(inv_path).exists() and parent:
+        inv_path = work_dir(cfg, parent) / "inventory.json"   # derived datasets reuse the parent's listing
+    inv = read_json(inv_path)
+    if inv["ensemble"] not in (name, parent):
         sys.exit(f"inventory is for {inv['ensemble']}, not {name}")
+    ens["_ns"] = cfg["metacat"]["namespace"]
     want_kinds = set(args.kinds.split(",")) if args.kinds else None
 
     # Optional htar index (htar_members.py output): archive path -> trajectory
@@ -248,7 +290,11 @@ def main() -> int:
                 groups = dict(groups, **{k: str(v) for k, v in archive_index[f["path"]].items() if v is not None})
             label = groups.get("stream", dir_label)
             classified.append((label, dir_label, f, rule, groups))
-            s = per_stream.setdefault(label, {"n_configs": 0, "n_config_archives": 0, "trajs": []})
+            s = per_stream.setdefault(label, {"n_configs": 0, "n_config_archives": 0, "n_files": 0,
+                                              "trajs": [], "other_trajs": []})
+            s["n_files"] += 1
+            if rule["kind"] not in ("gauge_config", "gauge_config_archive") and "trajectory" in groups:
+                s["other_trajs"].append(int(groups["trajectory"]))   # used only when a stream has no configs
             if rule["kind"] == "gauge_config":
                 s["n_configs"] += 1
                 s["trajs"].append(int(groups["trajectory"]))
@@ -262,8 +308,9 @@ def main() -> int:
         label: {
             "n_configs": s["n_configs"],
             "n_config_archives": s["n_config_archives"],
-            "trajectory_min": min(s["trajs"]) if s["trajs"] else None,
-            "trajectory_max": max(s["trajs"]) if s["trajs"] else None,
+            "n_files": s["n_files"],
+            "trajectory_min": min(s["trajs"] or s["other_trajs"]) if (s["trajs"] or s["other_trajs"]) else None,
+            "trajectory_max": max(s["trajs"] or s["other_trajs"]) if (s["trajs"] or s["other_trajs"]) else None,
         }
         for label, s in per_stream.items()
     }
@@ -299,7 +346,12 @@ def main() -> int:
         # is; generic names like "log.1590.tar" become "<ensemble>-a_log.1590.tar"
         # so streams cannot collide. The collision check below is the backstop.
         sdir = ens["streams"][label]["dir"].rstrip("/").rsplit("/", 1)[-1]
-        fname = base if sdir in base else f"{sdir}_{base}"
+        if ens["ensemble"].get("name_style") == "path":
+            # "<stream dir>/<path inside it>": for derived products whose
+            # basenames repeat across subdirectories (sparseprops-t24/1000.tar).
+            fname = f"{sdir}/{f['rel_path']}"
+        else:
+            fname = base if sdir in base else f"{sdir}_{base}"
         if not NAME_OK.match(fname):
             sys.exit(f"catalog name {fname!r} (from {f['path']}) uses characters outside FDP's allowed set "
                      f"{NAME_CHARS}; rename the file or extend the naming rule")

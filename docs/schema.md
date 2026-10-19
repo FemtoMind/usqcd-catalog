@@ -185,9 +185,36 @@ does) for any record whose location is on an FDP collection; `--from-json`
 takes hashes computed elsewhere. Either way `lqcd.checksum.source` records
 where the value came from.
 
-## Reserved for the next artifact kinds
+## Derived datasets (propagators, correlators)
 
-Propagators and correlators will reuse the ensemble/stream/trajectory keys and
-add `lqcd.parent.kind = "gauge_config"`, `lqcd.parent.ensemble`,
-`lqcd.parent.stream`, `lqcd.parent.trajectory` (and `lqcd.parent.sha256` once
-checksums exist), plus kind-specific fields (`lqcd.prop.*`, `lqcd.corr.*`).
+A derived product is its own dataset, `lqcd:<ensemble>_<product>` (e.g.
+`lqcd:cl3_48_96_b6p5_m0p1788_sparseprops`), described by a TOML whose
+`[ensemble]` names `parent = "<ensemble>"`. It inherits the parent's `[lqcd]`
+physics and streams, so each record is self-describing, and every record
+points back at the configuration it was computed on:
+
+| field | value |
+|---|---|
+| `lqcd.ensemble` | the **parent** ensemble name (so cross-dataset queries by ensemble find everything) |
+| `lqcd.parent.kind` | `"gauge_config"` on files, `"gauge_ensemble"` on the dataset |
+| `lqcd.parent.ensemble`, `.stream`, `.trajectory` | which configuration |
+| `lqcd.parent.name`, `.did` | the configuration's catalog record, from the rule's `parent_name` template (e.g. `"<ens>_cfg_{trajectory}.lime"`) |
+| `lqcd.parent.dataset` | `lqcd:<ensemble>` |
+| `lqcd.prop.<group>` | any extra named regex group in a file rule (`tsrc`, `variant`, ...); the prefix is the rule's `group_prefix` (default `prop`) |
+| `[files.meta]` keys | constant fields per rule, given in full (`"lqcd.prop.tsrc" = 0`) |
+| `[derived.*]` keys | dataset-level facts, flattened to `lqcd.*` and copied onto files (smearing, solver, grid, formats) |
+
+Catalog names for derived products are `"<stream dir>/<path inside it>"`
+(`name_style = "path"`), since basenames like `1000.tar` repeat across
+subdirectories.
+
+Kinds in use: `sparse_propagator_archive` (one tar/htar per configuration
+and source timeslice, members `<traj>/sprop_x<X>y<Y>z<Z>t<T>_uS<w>_S<w>.prop`),
+`propagator_run_xml_archive` (the Chroma input/output XML of every solve),
+`archive_index` (htar `.idx`). `lqcd.prop.*` fields: `kind`, `file_format`,
+`sparse_grid`, `sparsening_factor`, `n_sources_per_timeslice`,
+`source_timeslices`, `source_type`, `sink_type`, `smearing_kind`,
+`smearing_width`, `smearing_steps`, `link_smearing`, `solver`,
+`solver_rsd_target`, `solver_max_iter`, `quark_mass`, `member_name_template`,
+`tsrc` (per file), `variant` (per file, where several solver variants exist).
+Correlators will follow the same pattern with `lqcd.corr.*`.

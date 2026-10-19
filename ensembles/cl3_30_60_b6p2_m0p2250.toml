@@ -111,21 +111,21 @@ quantity = "a*m_pi"
 value = 0.4655
 stat = 0.0004
 ncfgs = 610
-notes = "6^3 grid of sparsened quark propagators on 2 timeslices with NSTEPS_TBD steps of wave function smearing with width 4.0. Prony-Ritz analysis of t = [2, Lt/2] with korrfitter v0 defaults."
+notes = "6^3 grid of sparsened quark propagators on 2 timeslices with 100 steps of wave function smearing with width 4.0. Prony-Ritz analysis of t = [2, Lt/2] with korrfitter v0 defaults."
 
 [observables.mN]
 quantity = "a*M_N (degenerate octet baryon at the SU(3)-symmetric point)"
 value = 0.9673
 stat = 0.0011
 ncfgs = 610
-notes = "6^3 grid of sparsened quark propagators on 2 timeslices with NSTEPS_TBD steps of wave function smearing with width 4.0. Prony-Ritz analysis of t = [2, Lt/2] with korrfitter v0 defaults."
+notes = "6^3 grid of sparsened quark propagators on 2 timeslices with 100 steps of wave function smearing with width 4.0. Prony-Ritz analysis of t = [2, Lt/2] with korrfitter v0 defaults."
 
 [observables.mpi_over_mN]
 quantity = "m_pi/M_N"
 value = 0.4812
 stat = 0.0005
 ncfgs = 610
-notes = "6^3 grid of sparsened quark propagators on 2 timeslices with NSTEPS_TBD steps of wave function smearing with width 4.0. Prony-Ritz analysis of t = [2, Lt/2] with korrfitter v0 defaults."
+notes = "6^3 grid of sparsened quark propagators on 2 timeslices with 100 steps of wave function smearing with width 4.0. Prony-Ritz analysis of t = [2, Lt/2] with korrfitter v0 defaults."
 
 [observables.a]
 schemes = ["t0", "w0"]
@@ -153,5 +153,6 @@ sparsening_factor = 5
 sparse_grid = "6^3"
 n_src_timeslices = 2
 smearing_width = 4.0
-smearing_steps = "TBD"
+smearing_steps = 100
+smearing_steps_source = "verified in the propagator run XML (xml-t30/1000.tar: wvf_kind GAUGE_INV_GAUSSIAN, wvf_param 4.0, wvfIntPar 100)"
 analysis = "Prony-Ritz (Lanczos), t = [2, Lt/2], korrfitter v0 defaults"
