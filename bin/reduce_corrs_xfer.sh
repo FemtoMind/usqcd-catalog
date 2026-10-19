@@ -2,6 +2,9 @@
 # Run reduce_corrs.py for one stream in the NERSC xfer queue (HPSS-capable,
 # long wall clock, no compute charge). One job per stream; resubmit the same
 # command if it hits the wall clock, it resumes where it stopped.
+# The xfer queue defaults to 2 GB of memory, which the 364 MB NN datasets
+# exceed within minutes (OOM-killed 2026-10-19), hence --mem=12G below;
+# --jobs 8 readers need about 4-5 GB.
 #
 #   sbatch bin/reduce_corrs_xfer.sh <members.json> <stream> <stage-dir> <out.h5> <dataset> [<dataset> ...]
 #
@@ -10,9 +13,11 @@
 #       cl21_48_96_b6p3_m0p2416_m0p2050-djm-2 \
 #       $SCRATCH/correlators/cl21_nucleon/stage \
 #       $SCRATCH/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050-djm-2.h5 \
-#       B0_A1m_p0_f B1_G1g_p0_f
+#       B0_A1u_p0_f B1_G1g_p0_f B2_G1g_G1g_p0_f --by-tsrc B0_A1u_p0_f B1_G1g_p0_f
 #SBATCH -q xfer
 #SBATCH -t 48:00:00
+#SBATCH --mem=12G
+#SBATCH -c 6
 #SBATCH -J reduce_corrs
 #SBATCH -o slurm_logs/reduce-%j.out
 #SBATCH -L scratch

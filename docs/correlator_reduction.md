@@ -43,7 +43,7 @@ eight streams of `cl21_48_96_b6p3_m0p2416_m0p2050`. Members
 | -djm-3 | 133 (500..3320) | 96 | 12768 | 4.2 TB |
 | -djm-4 | 87 (500..2420) | 96 | 8352 | 2.8 TB |
 
-Datasets wanted: `B0_A1m_p0_f` (pion) and `B1_G1g_p0_f` (nucleon), averaged
+Datasets wanted: `B0_A1u_p0_f` (pion), `B1_G1g_p0_f` (nucleon) and `B2_G1g_G1g_p0_f` (NN), averaged
 over the 96 sources per trajectory; the per-source arrays are kept too since
 they are tiny.
 

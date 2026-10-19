@@ -4,7 +4,7 @@ Pull selected correlator datasets out of htar-archived HDF5 files, one
 trajectory at a time, and accumulate a per-stream database.
 
     reduce_corrs.py work/cl21_nucleon/members.json --stream cl21_48_96_b6p3_m0p2416_m0p2050-djm-2 \
-        --datasets B0_A1m_p0_f B1_G1g_p0_f \
+        --datasets B0_A1u_p0_f B1_G1g_p0_f B2_G1g_G1g_p0_f --by-tsrc B0_A1u_p0_f B1_G1g_p0_f \
         --stage-dir $SCRATCH/correlators/cl21_nucleon/stage \
         --out $SCRATCH/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050-djm-2.h5
 
