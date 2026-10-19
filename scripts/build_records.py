@@ -103,18 +103,38 @@ NAME_CHARS = "A-Z a-z 0-9 - . _ /"
 NAME_OK = re.compile(r"^[A-Za-z0-9._/-]+$")
 
 
+def describe_counts(s: dict) -> str:
+    """'422 configs' | '5 config archives' | '4010 configs in 1 archive'."""
+    n, a = s["n_configs"], s["n_config_archives"]
+    if a and n:
+        return f"{n} configs in {a} archive{'s' if a != 1 else ''}"
+    if a:
+        return f"{a} config archive{'s' if a != 1 else ''}"
+    return f"{n} configs"
+
+
 def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
                   f: dict, rule: dict, groups: dict, ens_md: dict) -> dict:
     name = ens["ensemble"]["name"]
     kind = rule["kind"]
     traj = int(groups["trajectory"]) if "trajectory" in groups else None
+    # A rule may capture a trajectory *range* instead (archives holding many configs).
+    tmin = int(groups["trajectory_min"]) if "trajectory_min" in groups else None
+    tmax = int(groups["trajectory_max"]) if "trajectory_max" in groups else None
     hpss_path = f["path"]
 
+    if traj is not None:
+        where = f", trajectory {traj}"
+    elif tmin is not None and tmax is not None:
+        where = f", trajectories {tmin} to {tmax}"
+    else:
+        where = ""
     what = {
-        "gauge_config": f"Gauge configuration, trajectory {traj}",
-        "hmc_input": f"HMC restart input XML for trajectory {traj}",
-        "hmc_log_archive": f"HMC log/measurement tarball through trajectory {traj}",
-    }.get(kind, f"{kind} file" + (f", trajectory {traj}" if traj is not None else ""))
+        "gauge_config": f"Gauge configuration{where}",
+        "gauge_config_archive": f"Archive of gauge configurations{where}",
+        "hmc_input": f"HMC restart input XML for{where.replace(', ', ' ')}",
+        "hmc_log_archive": f"HMC log/measurement tarball through{where.replace(', trajectory', ' trajectory')}",
+    }.get(kind, f"{kind} file{where}")
     description = (
         f"{what} of stream '{stream_label}' of ensemble {name}{physics_summary(ens_md)}. "
         f"{rule.get('description', '')} "
@@ -125,7 +145,7 @@ def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
     md = {
         "AmSC.common.type": "artifact",
         "AmSC.common.description": description,
-        "AmSC.common.display_name": f"{name} {stream_label} {kind} {traj if traj is not None else ''}".strip(),
+        "AmSC.common.display_name": f"{name} {stream_label} {kind}{where.replace(', trajectory', '').replace('trajectories ', '')}".strip(),
         "AmSC.common.location": f"globus://{storage['globus_collection']}{hpss_path}",
         "AmSC.artifact.format": rule.get("format", "application/octet-stream"),
         "lqcd.artifact.kind": kind,
@@ -138,11 +158,19 @@ def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
         "lqcd.storage.owner": f["owner"],
         "lqcd.storage.globus_collection": storage["globus_collection"],
     }
+    tau0 = ens_md.get("lqcd.hmc.tau0")
     if traj is not None:
         md["lqcd.trajectory"] = traj
-        tau0 = ens_md.get("lqcd.hmc.tau0")
         if tau0:
             md["lqcd.md_time"] = round(traj * tau0, 6)
+    if tmin is not None and tmax is not None:
+        md["lqcd.trajectory_min"] = tmin
+        md["lqcd.trajectory_max"] = tmax
+        if tau0:
+            md["lqcd.md_time_min"] = round(tmin * tau0, 6)
+            md["lqcd.md_time_max"] = round(tmax * tau0, 6)
+    if "n_members" in groups:  # from an htar index (build_records.py --archive-index)
+        md["lqcd.n_configs_in_archive"] = int(groups["n_members"])
     # Stream provenance, only when the TOML states it.
     for k in ("parent_stream", "parent_trajectory"):
         if k in stream:
@@ -161,6 +189,9 @@ def main() -> int:
     ap.add_argument("--inventory", help="inventory JSON (default: work/<ensemble>/inventory.json)")
     ap.add_argument("-o", "--output", help="records JSON (default: work/<ensemble>/records.json)")
     ap.add_argument("--kinds", help="comma-separated lqcd.artifact.kind values to include (default: all rules)")
+    ap.add_argument("--archive-index", metavar="JSON",
+                    help="htar_members.py output; gives gauge_config_archive records their trajectory range and "
+                         "member count when the archive name itself does not carry them")
     ap.add_argument("--checksums", metavar="JSON", help="optional {name: {alg: hex}} or {name: hex} to include")
     ap.add_argument("--checksum-algorithm", default="sha256", help="algorithm for bare-string --checksums values")
     args = ap.parse_args()
@@ -175,13 +206,21 @@ def main() -> int:
         sys.exit(f"inventory is for {inv['ensemble']}, not {name}")
     want_kinds = set(args.kinds.split(",")) if args.kinds else None
 
+    # Optional htar index (htar_members.py output): archive path -> trajectory
+    # range + member count, for archives whose names do not say what they hold.
+    archive_index = {}
+    if args.archive_index:
+        for arc, v in read_json(args.archive_index)["archives"].items():
+            archive_index[arc] = {"trajectory_min": v["trajectory_min"], "trajectory_max": v["trajectory_max"],
+                                  "n_members": v["n_members"]}
+
     # First pass: classify, so the dataset record can carry per-stream counts.
-    classified = []  # (stream_label, file, rule, groups)
+    # A rule may capture a (?P<stream>...) group; that overrides the directory's
+    # stream label for the file (several streams archived in one directory).
+    classified = []  # (stream_label, directory_stream_label, file, rule, groups)
     unmatched = Counter()
-    streams_summary = {}
-    for label, st in inv["streams"].items():
-        n_cfg = 0
-        trajs = []
+    per_stream: dict[str, dict] = {}
+    for dir_label, st in inv["streams"].items():
         for f in st["files"]:
             rule, groups = classify(f["rel_path"], ens["files"])
             if rule is None:
@@ -189,19 +228,43 @@ def main() -> int:
                 continue
             if want_kinds and rule["kind"] not in want_kinds:
                 continue
-            classified.append((label, f, rule, groups))
+            if f["path"] in archive_index:
+                groups = dict(groups, **{k: str(v) for k, v in archive_index[f["path"]].items() if v is not None})
+            label = groups.get("stream", dir_label)
+            classified.append((label, dir_label, f, rule, groups))
+            s = per_stream.setdefault(label, {"n_configs": 0, "n_config_archives": 0, "trajs": []})
             if rule["kind"] == "gauge_config":
-                n_cfg += 1
-                trajs.append(int(groups["trajectory"]))
-        streams_summary[label] = {
-            "n_configs": n_cfg,
-            "trajectory_min": min(trajs) if trajs else None,
-            "trajectory_max": max(trajs) if trajs else None,
+                s["n_configs"] += 1
+                s["trajs"].append(int(groups["trajectory"]))
+            elif rule["kind"] == "gauge_config_archive":
+                s["n_config_archives"] += 1
+                if "trajectory_min" in groups:
+                    s["trajs"] += [int(groups["trajectory_min"]), int(groups["trajectory_max"])]
+                if "n_members" in groups:
+                    s["n_configs"] += int(groups["n_members"])
+    streams_summary = {
+        label: {
+            "n_configs": s["n_configs"],
+            "n_config_archives": s["n_config_archives"],
+            "trajectory_min": min(s["trajs"]) if s["trajs"] else None,
+            "trajectory_max": max(s["trajs"]) if s["trajs"] else None,
         }
+        for label, s in per_stream.items()
+    }
+    # Streams discovered from file names (not listed in the TOML) inherit the
+    # directory stream's entry so the dataset record and file records see them.
+    for label, dir_label, *_ in classified:
+        if label not in ens["streams"]:
+            ens["streams"][label] = dict(ens["streams"][dir_label], derived_from_dir=dir_label)
+    for label in [s for s in ens["streams"] if s not in per_stream]:
+        sys.stderr.write(f"[warn] stream {label!r} has no matching files; not listed on the dataset\n")
+        del ens["streams"][label]
 
     ens_md = ensemble_metadata(ens, cfg, streams_summary)
+    if any(v["n_config_archives"] for v in streams_summary.values()):
+        ens_md["lqcd.n_config_archives"] = sum(v["n_config_archives"] for v in streams_summary.values())
     ens_md["lqcd.stream_summary"] = [
-        f"{k}: {v['n_configs']} configs, traj {v['trajectory_min']}-{v['trajectory_max']}" for k, v in streams_summary.items()
+        f"{k}: {describe_counts(v)}, traj {v['trajectory_min']}-{v['trajectory_max']}" for k, v in streams_summary.items()
     ]
 
     ns = cfg["metacat"]["namespace"]
@@ -211,15 +274,16 @@ def main() -> int:
     given_checksums = read_json(args.checksums) if args.checksums else {}
     records = []
     seen = {}
-    for label, f, rule, groups in classified:
+    for label, dir_label, f, rule, groups in classified:
         base = f["path"].rsplit("/", 1)[1]
-        # Catalog name rule: the basename, prefixed with the stream directory
-        # when the basename does not already start with it. NPLQCD config and
-        # restart files embed the stream ("<ensemble>-a_cfg_10.lime") and are
-        # kept as is; generic names like "log.1590.tar" become
-        # "<ensemble>-a_log.1590.tar" so streams cannot collide.
-        sdir = ens["streams"][label]["dir"]
-        fname = base if base.startswith(sdir) else f"{sdir}_{base}"
+        # Catalog name rule: the basename, prefixed with the stream directory's
+        # last path component when the basename does not already contain it.
+        # NPLQCD config, restart and log files embed the stream
+        # ("<ensemble>-a_cfg_10.lime", "logs_<ensemble>_a.tar") and are kept as
+        # is; generic names like "log.1590.tar" become "<ensemble>-a_log.1590.tar"
+        # so streams cannot collide. The collision check below is the backstop.
+        sdir = ens["streams"][label]["dir"].rstrip("/").rsplit("/", 1)[-1]
+        fname = base if sdir in base else f"{sdir}_{base}"
         if not NAME_OK.match(fname):
             sys.exit(f"catalog name {fname!r} (from {f['path']}) uses characters outside FDP's allowed set "
                      f"{NAME_CHARS}; rename the file or extend the naming rule")
@@ -259,7 +323,7 @@ def main() -> int:
     print(f"  {len(records)} file records, {human_bytes(out['summary']['total_bytes'])}: "
           + ", ".join(f"{k}={v}" for k, v in kinds.items()))
     for k, v in streams_summary.items():
-        print(f"  stream {k:>5}: {v['n_configs']} configs, trajectories {v['trajectory_min']}..{v['trajectory_max']}")
+        print(f"  stream {k:>5}: {describe_counts(v)}, trajectories {v['trajectory_min']}..{v['trajectory_max']}")
     if unmatched:
         print(f"  skipped (no [[files]] rule): {dict(unmatched)}")
     print(f"wrote {outp}")

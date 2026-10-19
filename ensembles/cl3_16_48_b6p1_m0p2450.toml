@@ -1,0 +1,95 @@
+# Ensemble description: cl3_16_48_b6p1_m0p2450
+#
+# Nf=3 stout-clover, 16^3 x 48, beta = 6.1, m = -0.2450: the smallest volume
+# at the SU(3)-symmetric point (same action as cl3_24_48 / cl3_32_48 at this
+# beta and mass).
+#
+# HPSS layout: ONE directory, clover-iso/cl3_16_48_b6p1_m0p2450/cfgs/, holding
+# one htar archive per stream, a.tar ... h.tar (each ~454 GB, with .idx), and
+# inside each archive  <s>/cl3_16_48_b6p1_m0p2450_<s>_cfg_<N>.lime  plus the
+# matching restart XML  <s>/..._cfg_<N>.xml  (about 4010 configs per stream).
+# So the stream is not a directory here: the [[files]] rule captures it from
+# the archive name with a (?P<stream>...) group, and the trajectory range of
+# each archive comes from its htar index via
+#     python3 scripts/htar_members.py --archives .../cfgs/{a..h}.tar \
+#         --pattern '^[a-h]/.+_cfg_(?P<trajectory>\d+)\.lime$' --stream-depth 0 \
+#         -o work/cl3_16_48_b6p1_m0p2450/members.json
+#     python3 scripts/build_records.py ensembles/cl3_16_48_b6p1_m0p2450.toml \
+#         --archive-index work/cl3_16_48_b6p1_m0p2450/members.json
+#
+# Action numbers: beta/mass-dependent values are identical to the 24^3 x 48
+# ensemble's restart input (cl3_24_48_b6p1_m0p2450_a_restart_10000.xml); the
+# integrator step count is volume-specific and omitted.
+
+[ensemble]
+name = "cl3_16_48_b6p1_m0p2450"
+display_name = "cl3 16^3x48 beta=6.1 m=-0.2450"
+collaboration = "NPLQCD"
+generated_by = "NPLQCD"
+code = "Chroma hmc"
+storage = "nersc_hpss"
+description = """\
+Nf=3 (SU(3)-flavor-symmetric, m_l = m_s) stout-smeared clover Wilson fermion \
+ensemble on a 16^3 x 48 lattice with the tree-level Luscher-Weisz gauge action \
+at beta = 6.1 and bare quark mass -0.2450, the smallest volume of the NPLQCD \
+SU(3)-symmetric set. Eight Markov chain streams (a to h) with identical \
+parameters, trajectory numbering per stream. Configurations are saved every \
+10 HMC trajectories of length tau0 = 1.414 in SciDAC/ILDG LIME format; on \
+NERSC HPSS each stream is one htar archive (with index) holding about 4010 \
+configurations and their Chroma restart input XML files, so individual \
+configurations can be extracted from tape by name without staging the \
+whole archive. Each archive is one catalog record. Part of the NPLQCD \
+clover-iso ensemble set."""
+
+[lqcd]
+nflavors = 3
+flavor_structure = "3 degenerate (m_u = m_d = m_s)"
+beta = 6.1
+Nx = 16
+Ny = 16
+Nz = 16
+Nt = 48
+volume = [16, 16, 16, 48]
+
+[lqcd.action]
+gauge = "LW_TREE"
+gauge_u0 = 0.832605301399891
+fermion = "clover"
+fermion_state = "STOUT_FERM_STATE"
+csw = 1.24930970916466
+anisotropic = false
+fermion_bc = "1 1 1 -1"
+
+[lqcd.mass]
+light = -0.2450
+strange = -0.2450
+
+[lqcd.smearing]
+type = "stout"
+rho = 0.125
+n_smear = 1
+
+[lqcd.hmc]
+tau0 = 1.414
+integrator = "LCM_STS_MIN_NORM_2"
+save_interval = 10
+rational_lower_min = 0.005
+rational_upper_max = 32
+
+# All eight streams share this directory; the per-file stream label comes
+# from the (?P<stream>...) group in the rule below.
+[streams.shared]
+dir = "cl3_16_48_b6p1_m0p2450"
+note = "Directory shared by streams a-h; each stream is one htar archive cfgs/<stream>.tar."
+
+[[files]]
+pattern = '^cfgs/(?P<stream>[a-h])\.tar$'
+kind = "gauge_config_archive"
+format = "application/x-htar"
+description = "htar archive (index alongside) of SciDAC/ILDG LIME gauge configurations and their Chroma restart XML inputs for one stream, one file per saved trajectory; members are <stream>/cl3_16_48_b6p1_m0p2450_<stream>_cfg_<N>.lime. Extract single members with htar -xf <archive> <member>."
+
+[[files]]
+pattern = '^cfgs/(?P<stream>[a-h])\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+description = "htar index for the stream's archive; needed by htar to list or extract members."

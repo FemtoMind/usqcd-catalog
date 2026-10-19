@@ -62,6 +62,24 @@ format = "application/x-lime"
 description = "Gauge configuration in SciDAC/ILDG LIME format."
 ```
 
+### Three storage layouts seen so far
+
+* **One file per configuration** (`cl3_32_64_b6p5_m0p1788`, `cl3_24_48_b6p1_m0p2450`):
+  one `[streams.<s>]` per directory, rules with a `trajectory` group.
+* **Plain tar archives named by trajectory range** (`cl3_32_48_b6p1_m0p2450`,
+  `cfgs/<ens>_cfg_10000-19990.tar`): kind `gauge_config_archive`, rule groups
+  `trajectory_min` and `trajectory_max`.
+* **One htar archive per stream in a shared directory** (`cl3_16_48_b6p1_m0p2450`,
+  `cfgs/a.tar` ... `h.tar` plus `.idx`): a single `[streams.shared]` entry for
+  the directory, a rule with a `(?P<stream>[a-h])` group that sets each
+  file's stream label, and the trajectory range read from the htar index:
+
+  ```
+  python3 scripts/htar_members.py --archives .../cfgs/{a..h}.tar --stream-depth 0 \
+      --pattern '^[a-h]/.+_cfg_(?P<trajectory>\d+)\.lime$' -o work/<name>/members.json
+  python3 scripts/build_records.py ensembles/<name>.toml --archive-index work/<name>/members.json
+  ```
+
 ## 2. Run the pipeline
 
 ```

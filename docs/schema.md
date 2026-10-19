@@ -50,7 +50,8 @@ actions (where xi and nu enter) or non-Wilson actions.
 | `lqcd.ensemble` | ensemble name, same as the dataset name |
 | `lqcd.collaboration`, `lqcd.generated_by`, `lqcd.machine`, `lqcd.code`, `lqcd.year` | provenance |
 | `lqcd.streams` | list of stream labels, e.g. `["main","a","b","c"]` |
-| `lqcd.n_streams`, `lqcd.n_configs` | counts at catalog time |
+| `lqcd.n_streams`, `lqcd.n_configs` | counts at catalog time (`n_configs` counts single-config records only) |
+| `lqcd.n_config_archives` | present when configs are stored as multi-config tar archives |
 | `lqcd.stream_summary` | list of strings `"<stream>: N configs, traj lo-hi"` |
 | `lqcd.catalog.schema_version` | `1` |
 | `lqcd.catalog.updated_at` | ISO timestamp of the last `build_records.py` |
@@ -98,13 +99,14 @@ convention of the earlier NPLQCD eigenvector demo where one existed.
 | `AmSC.common.display_name` | `"<ensemble> <stream> <kind> <trajectory>"` |
 | `AmSC.common.location` | `globus://<storage collection uuid><absolute path>` |
 | `AmSC.artifact.format` | `application/x-lime`, `application/xml`, `application/x-tar` |
-| `lqcd.artifact.kind` | `gauge_config` \| `hmc_input` \| `hmc_log_archive` |
+| `lqcd.artifact.kind` | `gauge_config` (one LIME file) \| `gauge_config_archive` (a tar/htar of many configs, carries `lqcd.trajectory_min`/`_max` and, from an htar index, `lqcd.n_configs_in_archive`) \| `archive_index` (an htar `.idx`) \| `hmc_input` \| `hmc_input_archive` \| `hmc_log_archive` \| `hmc_measurement_archive` |
 | `lqcd.ensemble` | ensemble name |
-| `lqcd.stream` | stream label from the TOML (`main`, `a`, ...) |
+| `lqcd.stream` | stream label from the TOML (`main`, `a`, ...), or from a `(?P<stream>...)` group in the file rule when several streams share one directory |
 | `lqcd.stream_dir` | storage directory name of the stream |
 | `lqcd.stream_parent_stream`, `lqcd.stream_parent_trajectory` | only when the TOML states the branch point |
 | `lqcd.trajectory` | int, the configuration number in the file name (HMC update count within the stream) |
 | `lqcd.md_time` | `trajectory * lqcd.hmc.tau0` |
+| `lqcd.trajectory_min`, `lqcd.trajectory_max` | for archives of many configurations: the range in the archive (from a `trajectory_min`/`trajectory_max` regex group); `lqcd.md_time_min/_max` likewise when tau0 is known |
 | `lqcd.storage.system`, `.site` | `"hpss"`, `"NERSC"` |
 | `lqcd.storage.path` | absolute path on that system (what `hsi get` takes) |
 | `lqcd.storage.filename` | original basename (the catalog `name` may be stream-prefixed, see adding_an_ensemble.md) |
