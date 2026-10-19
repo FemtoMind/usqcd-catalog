@@ -15,9 +15,12 @@ sliced, or resumed at any point without re-listing tape.
 
 ## Worked example: cl21 nucleon correlators (2026-10-16)
 
+Source paths are the real NPLQCD locations on NERSC HPSS; `$SCRATCH` is
+your own NERSC scratch directory. Substitute both for your site.
+
 Goal: copy `frontier/correlators/<TRAJ>.tar` from every stream of
 `cl21_48_96_b6p3_m0p2416_m0p2050` on NERSC HPSS to
-`/pscratch/sd/m/mlwagman/correlators/cl21_nucleon/<stream>/` and unpack them.
+`$SCRATCH/correlators/cl21_nucleon/<stream>/` and unpack them.
 
 ### 1. Select
 
@@ -50,7 +53,7 @@ Plan first (writes the batch file and prints the command, submits nothing):
 ```
 python3 scripts/globus_transfer.py work/cl21_nucleon/manifest.json \
   --src nersc_hpss --dest nersc_dtn \
-  --dest-root /pscratch/sd/m/mlwagman/correlators/cl21_nucleon \
+  --dest-root $SCRATCH/correlators/cl21_nucleon \
   --dest-template "{dir_name}/{basename}"
 ```
 
@@ -58,7 +61,7 @@ Then one stream at a time with `--submit` (see the quota note below):
 
 ```
 python3 scripts/globus_transfer.py work/cl21_nucleon/manifest.json --src nersc_hpss --dest nersc_dtn \
-  --dest-root /pscratch/sd/m/mlwagman/correlators/cl21_nucleon --dest-template "{dir_name}/{basename}" \
+  --dest-root $SCRATCH/correlators/cl21_nucleon --dest-template "{dir_name}/{basename}" \
   --dirs cl21_48_96_b6p3_m0p2416_m0p2050-djm-2 --submit --label "cl21 nucleon djm-2"
 python3 scripts/globus_transfer.py --status <task-id> --wait
 python3 scripts/globus_transfer.py work/cl21_nucleon/manifest.json --dest-root ... --dest-template ... \
@@ -75,7 +78,7 @@ only what is missing.
 
 ```
 sbatch bin/untar_slurm.sh work/cl21_nucleon/manifest.json \
-  /pscratch/sd/m/mlwagman/correlators/cl21_nucleon "{dir_name}/{basename}" 16
+  $SCRATCH/correlators/cl21_nucleon "{dir_name}/{basename}" 16
 ```
 
 Each tarball is extracted into its own stream directory and gets a
@@ -90,5 +93,5 @@ Globus task completes.
 The tarballs alone are 25.7 TB and the unpacked trees add the same again
 unless the tars are deleted. Either request a scratch quota increase, or run
 stream by stream with `--remove-tar`, or point `--dest-root` at CFS
-(`/global/cfs/cdirs/m747/...`, also served by the NERSC DTN collection).
+(`/global/cfs/cdirs/<project>/...`, also served by the NERSC DTN collection).
 Nothing in the scripts assumes the whole manifest fits at once.

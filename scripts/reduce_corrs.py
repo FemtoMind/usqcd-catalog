@@ -5,8 +5,8 @@ trajectory at a time, and accumulate a per-stream database.
 
     reduce_corrs.py work/cl21_nucleon/members.json --stream cl21_48_96_b6p3_m0p2416_m0p2050-djm-2 \
         --datasets B0_A1m_p0_f B1_G1g_p0_f \
-        --stage-dir /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/stage \
-        --out /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050-djm-2.h5
+        --stage-dir $SCRATCH/correlators/cl21_nucleon/stage \
+        --out $SCRATCH/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050-djm-2.h5
 
 For each trajectory in the members manifest (from htar_members.py):
   1. extract that trajectory's member files (all sources) from the HPSS htar

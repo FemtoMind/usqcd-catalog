@@ -3,7 +3,7 @@
 Unpack the tarballs named in a manifest once they have landed on local disk.
 
     untar_manifest.py work/cl21_nucleon/manifest.json \
-        --dest-root /pscratch/sd/m/mlwagman/correlators/cl21_nucleon \
+        --dest-root $SCRATCH/correlators/cl21_nucleon \
         --dest-template "{dir_name}/{basename}" --jobs 8 [--dry-run] [--remove-tar]
 
 For every manifest file the local tarball is <dest-root>/<template>. Each one is

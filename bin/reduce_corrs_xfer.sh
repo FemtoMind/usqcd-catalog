@@ -8,8 +8,8 @@
 # e.g.
 #   sbatch bin/reduce_corrs_xfer.sh work/cl21_nucleon/members.json \
 #       cl21_48_96_b6p3_m0p2416_m0p2050-djm-2 \
-#       /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/stage \
-#       /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050-djm-2.h5 \
+#       $SCRATCH/correlators/cl21_nucleon/stage \
+#       $SCRATCH/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050-djm-2.h5 \
 #       B0_A1m_p0_f B1_G1g_p0_f
 #SBATCH -q xfer
 #SBATCH -t 48:00:00

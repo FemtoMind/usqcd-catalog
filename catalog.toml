@@ -14,7 +14,7 @@
 # use a specific interpreter rather than the `python3` on PATH, e.g. a venv
 # that holds metacat-client and globus-cli.
 # Keep any venv on a filesystem that is not purged (home, not scratch).
-# python = "/global/homes/m/mlwagman/.amsc-fetch/venv/bin/python3"
+# python = "/path/to/your/venv/bin/python3"
 
 [metacat]
 server_url = "https://metacat.fnal.gov:9443/amsc_meta_prod/app"
@@ -66,7 +66,9 @@ system = "posix"
 site = "NERSC"
 globus_collection = "9d6d994a-6d04-11e5-ba46-22000b92c6ec"
 globus_label = "NERSC DTN"   # pscratch / CFS; high-assurance, needs `globus session update nersc.gov`
-root = "/pscratch/sd/m/mlwagman"
+# Writable root is per user ($SCRATCH or /global/cfs/cdirs/<project>); the
+# transfer step takes the destination explicitly with --dest-root.
+root = ""
 
 [storage.bnl_sdcc]
 system = "posix"

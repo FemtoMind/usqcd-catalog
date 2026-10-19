@@ -59,7 +59,7 @@ actions (where xi and nu enter) or non-Wilson actions.
 ## Physics fields (dataset and every file)
 
 Taken verbatim from the Chroma HMC input. Names follow the existing
-`amsc-fetch` convention where one existed.
+convention of the earlier NPLQCD eigenvector demo where one existed.
 
 | Field | Type | Example (cl3_32_64_b6p5_m0p1788) |
 |---|---|---|

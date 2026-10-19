@@ -8,9 +8,9 @@
 # and is valid for about a week; every script in scripts/ picks it up from
 # there. Catalog *reads* never need it.
 #
-# Username precedence: argument, $METACAT_USER, then your login name. Your
-# FNAL Services username may differ from your local one (NERSC mlwagman is
-# FNAL mwagman), so set METACAT_USER in your shell rc if they differ.
+# Username precedence: argument, $METACAT_USER, then your local login name.
+# Your FNAL Services username is often not the same as your NERSC/JLab/BNL
+# login, so pass it explicitly or set METACAT_USER in your shell rc.
 #
 # Token-based login (htgettoken) is the intended FNAL path but was broken
 # server-side when this was written (missing scitokens module); set

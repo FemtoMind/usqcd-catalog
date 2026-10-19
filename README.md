@@ -80,7 +80,8 @@ python3 scripts/hpss_inventory.py ensembles/cl3_32_64_b6p5_m0p1788.toml
 ```
 
 A venv works the same way if you prefer isolation
-(`python3 -m venv ~/.amsc-fetch/venv && source ~/.amsc-fetch/venv/bin/activate && pip install -e .`).
+(`python3 -m venv .venv && source .venv/bin/activate && pip install -e .`;
+`.venv/` is gitignored).
 `pip install -e '.[transfer]'` adds globus-cli for moving data and
 `'.[reduce]'` adds h5py + numpy for the correlator scripts (both already in
 the NERSC python module). `requirements.txt` is the same dependency list for
@@ -100,21 +101,22 @@ shell helpers that need metacat-client (`bin/check_auth.sh`,
 filesystem that is not purged; one on NERSC `$SCRATCH` silently loses files
 after 8 weeks.
 
+## Authentication
+
 Catalog reads are anonymous: querying, `--diff`, `--list-ensembles` and
-`--paths` need no account anywhere. Writing needs a MetaCat token (valid
-about a week), and on the AmSC server every login method (password, x509,
-SciToken) resolves to an **FNAL Services identity** holding the `lqcd_write`
-role:
+`--paths` need no account anywhere. Writing to the catalog needs an FNAL
+Services account with the `lqcd_write` role; moving data needs a Globus
+login plus per-collection consents. `docs/authentication.md` walks through
+getting each one. Day to day:
 
 ```
-bin/metacat_login.sh [fnal-services-username]   # interactive password login
+bin/metacat_login.sh <fnal-services-username>   # MetaCat token, valid about a week
 bin/check_auth.sh                                # exit 0/2/3/4, see header
 ```
 
 Groups without an FNAL account can still use the first two steps: build
 `records.json` from their own inventory and TOML, then hand that file to
-someone with write access to run `declare_records.py`. Whether `lqcd_write`
-can be granted to non-FNAL identities is an open question for the AmSC team.
+someone with write access to run `declare_records.py`.
 
 ## Running it for one ensemble
 
@@ -175,6 +177,7 @@ scripts/                the four catalog steps + catalog_common.py (+ attach_che
 bin/metacat_login.sh    interactive token login;  bin/check_auth.sh  status + exit codes
 bin/untar_slurm.sh      sbatch wrapper for the unpack step;  bin/reduce_corrs_xfer.sh  for reduce_corrs
 bin/htar_extract.sh     pull named members out of an htar archive;  bin/wait_job.sh  block on a Slurm job
+docs/authentication.md  accounts, tokens, Globus consents, step by step for a new user
 docs/schema.md          every field, what is required, mass/kappa convention
 docs/adding_an_ensemble.md
 docs/storage_and_transfer.md   Globus collections, HPSS, FDP backup plan, checksums

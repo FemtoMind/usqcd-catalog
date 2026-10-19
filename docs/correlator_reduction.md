@@ -25,6 +25,9 @@ output is small: per stream a few MB.
 
 ## Worked example: cl21 nucleon / pion correlators (2026-10-16)
 
+Archive paths are the real NPLQCD locations on NERSC HPSS; `$SCRATCH` is
+your own NERSC scratch directory.
+
 Archives: `<stream>/frontier/correlators-NN/processed-results.tar` for the
 eight streams of `cl21_48_96_b6p3_m0p2416_m0p2050`. Members
 `processed-results/all-corrs-<TRAJ>-<TSRC>.h5`, 364 MB each.
@@ -53,14 +56,14 @@ python3 scripts/htar_members.py --archives /home/w/wdetmold/clover-iso/cl21_48_9
 # 2. one xfer-queue job per stream (48 h wall clock, resumable, up to 15 running at once)
 for S in cl21_48_96_b6p3_m0p2416_m0p2050{,-1000,-1200,-2420,-djm-1,-djm-2,-djm-3,-djm-4}; do
   sbatch bin/reduce_corrs_xfer.sh work/cl21_nucleon/members.json $S \
-      /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/stage \
-      /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/$S.h5 B0_A1m_p0_f B1_G1g_p0_f
+      $SCRATCH/correlators/cl21_nucleon/stage \
+      $SCRATCH/correlators/cl21_nucleon/$S.h5 B0_A1m_p0_f B1_G1g_p0_f
 done
 
 # 3. merge (any time; re-run when more trajectories have landed)
 module load python
-python3 scripts/merge_corrs.py --out /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050_nucleon_pion.h5 \
-    /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050*.h5
+python3 scripts/merge_corrs.py --out $SCRATCH/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050_nucleon_pion.h5 \
+    $SCRATCH/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050*.h5
 ```
 
 Output layout: `/<stream>/trajectories`, `/<stream>/tsrc`,

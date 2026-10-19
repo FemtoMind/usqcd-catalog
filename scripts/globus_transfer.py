@@ -4,7 +4,7 @@ Move the files in a manifest between two Globus collections from catalog.toml.
 
     # 1. plan: write the batch file + plan JSON, print the command, submit nothing
     globus_transfer.py work/cl21_nucleon/manifest.json --src nersc_hpss --dest nersc_dtn \
-        --dest-root /pscratch/sd/m/mlwagman/correlators/cl21_nucleon \
+        --dest-root $SCRATCH/correlators/cl21_nucleon \
         --dest-template "{dir_name}/{basename}"
 
     # 2. submit (same flags + --submit); add --dirs/--trajectory-min/--limit to do a slice first
