@@ -52,6 +52,7 @@ def main() -> int:
     for d in args.dirs:
         d = d.rstrip("/")
         prefix = d + "/"
+        dir_name = d.rsplit("/", 1)[1]
         hits = []
         for f in all_files:
             if not f["path"].startswith(prefix):
@@ -60,7 +61,7 @@ def main() -> int:
             m = pat.match(rel)
             if not m:
                 continue
-            rec = dict(f, rel_path=rel, dir=d, dir_name=d.rsplit("/", 1)[1])
+            rec = dict(f, rel_path=rel, dir=d, dir_name=dir_name)
             for k, v in m.groupdict().items():
                 if v is not None:
                     rec[k] = int(v) if v.isdigit() else v
@@ -72,7 +73,7 @@ def main() -> int:
             have = set(trajs)
             gaps = [t for t in range(min(trajs), max(trajs) + 1, args.step) if t not in have]
         dirs[d] = {
-            "dir_name": d.rsplit("/", 1)[1], "n_files": len(hits), "total_bytes": sum(h["size"] for h in hits),
+            "dir_name": dir_name, "n_files": len(hits), "total_bytes": sum(h["size"] for h in hits),
             "trajectory_min": min(trajs) if trajs else None, "trajectory_max": max(trajs) if trajs else None,
             "trajectories": trajs, "gaps": gaps, "files": hits,
         }

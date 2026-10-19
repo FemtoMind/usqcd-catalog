@@ -3,6 +3,10 @@ Shared helpers for the usqcd-catalog scripts.
 
 Nothing here talks to HPSS. The only network dependency is MetaCat, and it is
 imported lazily so inventory/build steps work without the client installed.
+
+Paths are resolved relative to this file, so `python3 /any/path/scripts/x.py`
+works from any working directory: catalog.toml defaults to <repo>/catalog.toml
+and a relative [defaults].work_dir is taken under the repo root.
 """
 
 from __future__ import annotations
@@ -11,9 +15,16 @@ import json
 import os
 import re
 import sys
-import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
+
+try:
+    import tomllib  # Python >= 3.11
+except ImportError:  # older interpreters: `pip install -e .` pulls in tomli
+    try:
+        import tomli as tomllib
+    except ImportError:
+        sys.exit("need Python >= 3.11, or `pip install tomli` (done automatically by `pip install -e .`)")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CATALOG_CONFIG = REPO_ROOT / "catalog.toml"
@@ -118,6 +129,7 @@ def complete_mass_kappa(md: dict) -> dict:
 
 
 def work_dir(cfg: dict, ensemble_name: str) -> Path:
+    """<work_dir>/<ensemble>, created if needed; a relative work_dir is under the repo root."""
     d = Path(cfg["defaults"]["work_dir"])
     if not d.is_absolute():
         d = REPO_ROOT / d
@@ -127,6 +139,7 @@ def work_dir(cfg: dict, ensemble_name: str) -> Path:
 
 
 def storage_for(cfg: dict, ens: dict) -> dict:
+    """The catalog.toml [storage.<key>] table named by ensemble.storage, with its key added."""
     key = ens["ensemble"].get("storage")
     try:
         return dict(cfg["storage"][key], key=key)
@@ -173,9 +186,11 @@ def metacat_client(cfg: dict, need_auth: bool):
     try:
         from metacat.webapi import MetaCatClient
     except ImportError:
+        hint = cfg.get("venv", {}).get("python")
         sys.exit(
-            "metacat-client is not importable. Run this script with the interpreter "
-            f'named in catalog.toml [venv].python ({cfg.get("venv", {}).get("python", "?")}).'
+            f"metacat-client is not importable by {sys.executable}. "
+            "Install it with `pip install -e .` (or `pip install metacat-client`) for this interpreter"
+            + (f", or run with {hint}." if hint else ".")
         )
     client = MetaCatClient(url)
     if need_auth:
@@ -207,7 +222,15 @@ def human_bytes(n: int) -> str:
         if x < 1024 or unit == "PB":
             return f"{x:.1f} {unit}" if unit != "B" else f"{int(x)} B"
         x /= 1024
-    return f"{n} B"
+
+
+def dest_path(f: dict, root: str, template: str) -> str:
+    """Local path for a manifest entry: <root>/<template>, where the template
+    may use {dir_name}, {rel_path}, {basename} and any regex group recorded in
+    the manifest (e.g. {trajectory}). Shared by globus_transfer.py (where the
+    files should land) and untar_manifest.py (where to find them)."""
+    fields = dict(f, basename=f["path"].rsplit("/", 1)[1])
+    return os.path.join(root, template.format(**fields))
 
 
 def write_json(path: Path, obj) -> None:

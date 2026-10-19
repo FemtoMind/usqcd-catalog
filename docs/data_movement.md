@@ -22,7 +22,7 @@ Goal: copy `frontier/correlators/<TRAJ>.tar` from every stream of
 ### 1. Select
 
 ```
-scripts/hpss_select.py \
+python3 scripts/hpss_select.py \
   --dirs /home/w/wdetmold/clover-iso/cl21_48_96_b6p3_m0p2416_m0p2050{,-1000,-1200,-2420,-djm-1,-djm-2,-djm-3,-djm-4} \
   --pattern '^frontier/correlators/(?P<trajectory>\d+)\.tar$' --step 20 \
   -o work/cl21_nucleon/manifest.json
@@ -48,7 +48,7 @@ Every stream has `frontier/correlators/` and nothing but `<TRAJ>.tar` in it
 Plan first (writes the batch file and prints the command, submits nothing):
 
 ```
-scripts/globus_transfer.py work/cl21_nucleon/manifest.json \
+python3 scripts/globus_transfer.py work/cl21_nucleon/manifest.json \
   --src nersc_hpss --dest nersc_dtn \
   --dest-root /pscratch/sd/m/mlwagman/correlators/cl21_nucleon \
   --dest-template "{dir_name}/{basename}"
@@ -57,11 +57,11 @@ scripts/globus_transfer.py work/cl21_nucleon/manifest.json \
 Then one stream at a time with `--submit` (see the quota note below):
 
 ```
-scripts/globus_transfer.py work/cl21_nucleon/manifest.json --src nersc_hpss --dest nersc_dtn \
+python3 scripts/globus_transfer.py work/cl21_nucleon/manifest.json --src nersc_hpss --dest nersc_dtn \
   --dest-root /pscratch/sd/m/mlwagman/correlators/cl21_nucleon --dest-template "{dir_name}/{basename}" \
   --dirs cl21_48_96_b6p3_m0p2416_m0p2050-djm-2 --submit --label "cl21 nucleon djm-2"
-scripts/globus_transfer.py --status <task-id> --wait
-scripts/globus_transfer.py work/cl21_nucleon/manifest.json --dest-root ... --dest-template ... \
+python3 scripts/globus_transfer.py --status <task-id> --wait
+python3 scripts/globus_transfer.py work/cl21_nucleon/manifest.json --dest-root ... --dest-template ... \
   --dirs cl21_48_96_b6p3_m0p2416_m0p2050-djm-2 --verify
 ```
 

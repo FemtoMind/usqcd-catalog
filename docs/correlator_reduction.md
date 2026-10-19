@@ -46,7 +46,7 @@ they are tiny.
 
 ```
 # 1. index (seconds; reads only the .idx files)
-scripts/htar_members.py --archives /home/w/wdetmold/clover-iso/cl21_48_96_b6p3_m0p2416_m0p2050{,-1000,-1200,-2420,-djm-1,-djm-2,-djm-3,-djm-4}/frontier/correlators-NN/processed-results.tar \
+python3 scripts/htar_members.py --archives /home/w/wdetmold/clover-iso/cl21_48_96_b6p3_m0p2416_m0p2050{,-1000,-1200,-2420,-djm-1,-djm-2,-djm-3,-djm-4}/frontier/correlators-NN/processed-results.tar \
     --pattern '^processed-results/all-corrs-(?P<trajectory>\d+)-(?P<tsrc>\d+)\.h5$' \
     -o work/cl21_nucleon/members.json
 
@@ -59,7 +59,7 @@ done
 
 # 3. merge (any time; re-run when more trajectories have landed)
 module load python
-scripts/merge_corrs.py --out /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050_nucleon_pion.h5 \
+python3 scripts/merge_corrs.py --out /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050_nucleon_pion.h5 \
     /pscratch/sd/m/mlwagman/correlators/cl21_nucleon/cl21_48_96_b6p3_m0p2416_m0p2050*.h5
 ```
 

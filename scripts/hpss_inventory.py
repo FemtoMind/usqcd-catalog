@@ -122,7 +122,7 @@ def main() -> int:
     else:
         source = "hsi ls -lR"
         all_files = []
-        for label, st in ens["streams"].items():
+        for st in ens["streams"].values():
             all_files += parse_listing(run_hsi_ls(storage.get("hsi", "hsi"), f"{root}/{st['dir']}"))
 
     streams = {}

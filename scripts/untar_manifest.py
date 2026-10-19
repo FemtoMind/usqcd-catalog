@@ -28,15 +28,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from catalog_common import human_bytes, read_json, utcnow, write_json  # noqa: E402
-
-
-def dest_path(f: dict, root: str, template: str) -> str:
-    fields = dict(f, basename=f["path"].rsplit("/", 1)[1])
-    return os.path.join(root, template.format(**fields))
+from catalog_common import dest_path, read_json, utcnow, write_json  # noqa: E402
 
 
 def extract(tar: str, remove: bool, dry: bool) -> tuple[str, str, str]:
+    """Extract one tarball next to itself; returns (tar, status, info) for the report."""
     marker = tar + ".extracted"
     outdir = os.path.dirname(tar)
     if dry:
@@ -71,7 +67,7 @@ def main() -> int:
 
     manifest = read_json(args.manifest)
     todo, done, missing, incomplete = [], [], [], []
-    for d, v in manifest["dirs"].items():
+    for v in manifest["dirs"].values():
         if args.dirs and v["dir_name"] not in args.dirs:
             continue
         for f in v["files"]:

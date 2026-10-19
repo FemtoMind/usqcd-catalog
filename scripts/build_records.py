@@ -24,13 +24,23 @@ Record layout (what MetaCat's declare_files expects, plus our conventions):
                        plus lqcd.artifact.kind, lqcd.stream, lqcd.trajectory,
                        lqcd.storage.*)
 
-Checksums are deliberately absent: HPSS stores none for these files and the
-bytes are only on tape. A later pass can add them with update_file().
+Naming rules (FDP): a name must be unique within the namespace and may use
+only letters, digits, "-", ".", "_" and "/". A namespace containing the word
+"test" is never migrated to the central AmSC catalog. The script enforces the
+first two and warns on the third.
+
+Checksums are optional. HPSS stores none for these files and the bytes are
+only on tape, so by default records carry no checksums. If you have hashes
+(e.g. from FDP's examples/generate_metadata.py or sha256sum on a DTN), pass
+--checksums hashes.json ({name: {alg: hex}} or {name: hex}) and they are
+included at declare time; attach_checksums.py adds them to existing records
+later, including straight from FDP dCache once a copy lives there.
 """
 
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -66,20 +76,9 @@ def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict) -> dict:
     return md
 
 
-def file_metadata(ens: dict, cfg: dict, storage: dict, stream_label: str, stream: dict,
-                  f: dict, rule: dict, groups: dict, ens_md: dict) -> dict:
-    e = ens["ensemble"]
-    name = e["name"]
-    kind = rule["kind"]
-    traj = int(groups["trajectory"]) if "trajectory" in groups else None
-    hpss_path = f["path"]
-
-    what = {
-        "gauge_config": f"Gauge configuration, trajectory {traj}",
-        "hmc_input": f"HMC restart input XML for trajectory {traj}",
-        "hmc_log_archive": f"HMC log/measurement tarball through trajectory {traj}",
-    }.get(kind, f"{kind} file" + (f", trajectory {traj}" if traj is not None else ""))
-    # Short physics summary from whatever ensemble fields exist (all optional).
+def physics_summary(ens_md: dict) -> str:
+    """Short physics summary from whatever ensemble fields exist (all optional),
+    e.g. ": Nf=3, clover, 32^3 x 64, beta=6.5, m_l=-0.1788, kappa_l=0.1308"."""
     bits = []
     if "lqcd.nflavors" in ens_md:
         bits.append(f"Nf={ens_md['lqcd.nflavors']}")
@@ -93,9 +92,32 @@ def file_metadata(ens: dict, cfg: dict, storage: dict, stream_label: str, stream
         bits.append(f"m_l={ens_md['lqcd.mass.light']}")
     if "lqcd.kappa.light" in ens_md:
         bits.append(f"kappa_l={ens_md['lqcd.kappa.light']}")
-    summary = (": " + ", ".join(bits)) if bits else ""
+    return (": " + ", ".join(bits)) if bits else ""
+
+
+# Ensemble-level keys that describe the dataset as a whole and are not copied
+# onto every file record (file records get the physics keys, lqcd.beta etc.).
+DATASET_ONLY_PREFIXES = ("lqcd.n_", "lqcd.streams", "lqcd.stream_summary", "lqcd.catalog.")
+# FDP naming rule: letters, digits, "-", ".", "_" and "/" only.
+NAME_CHARS = "A-Z a-z 0-9 - . _ /"
+NAME_OK = re.compile(r"^[A-Za-z0-9._/-]+$")
+
+
+def file_metadata(ens: dict, storage: dict, stream_label: str, stream: dict,
+                  f: dict, rule: dict, groups: dict, ens_md: dict) -> dict:
+    name = ens["ensemble"]["name"]
+    kind = rule["kind"]
+    traj = int(groups["trajectory"]) if "trajectory" in groups else None
+    hpss_path = f["path"]
+
+    what = {
+        "gauge_config": f"Gauge configuration, trajectory {traj}",
+        "hmc_input": f"HMC restart input XML for trajectory {traj}",
+        "hmc_log_archive": f"HMC log/measurement tarball through trajectory {traj}",
+    }.get(kind, f"{kind} file" + (f", trajectory {traj}" if traj is not None else ""))
     description = (
-        f"{what} of stream '{stream_label}' of ensemble {name}{summary}. {rule.get('description', '')} "
+        f"{what} of stream '{stream_label}' of ensemble {name}{physics_summary(ens_md)}. "
+        f"{rule.get('description', '')} "
         f"Stored on {storage['site']} {storage['system'].upper()} at {hpss_path} "
         f"(Globus collection '{storage['globus_label']}')."
     ).strip()
@@ -127,7 +149,7 @@ def file_metadata(ens: dict, cfg: dict, storage: dict, stream_label: str, stream
             md[f"lqcd.stream_{k}"] = stream[k]
     # Ensemble-level physics on every file so query hits are self-describing.
     for k, v in ens_md.items():
-        if k.startswith("lqcd.") and k not in md and not k.startswith(("lqcd.n_", "lqcd.streams", "lqcd.stream_summary", "lqcd.catalog.")):
+        if k.startswith("lqcd.") and k not in md and not k.startswith(DATASET_ONLY_PREFIXES):
             md[k] = v
     return md
 
@@ -139,6 +161,8 @@ def main() -> int:
     ap.add_argument("--inventory", help="inventory JSON (default: work/<ensemble>/inventory.json)")
     ap.add_argument("-o", "--output", help="records JSON (default: work/<ensemble>/records.json)")
     ap.add_argument("--kinds", help="comma-separated lqcd.artifact.kind values to include (default: all rules)")
+    ap.add_argument("--checksums", metavar="JSON", help="optional {name: {alg: hex}} or {name: hex} to include")
+    ap.add_argument("--checksum-algorithm", default="sha256", help="algorithm for bare-string --checksums values")
     args = ap.parse_args()
 
     cfg = load_catalog_config(args.config)
@@ -161,7 +185,7 @@ def main() -> int:
         for f in st["files"]:
             rule, groups = classify(f["rel_path"], ens["files"])
             if rule is None:
-                unmatched[f["rel_path"].split("/")[0] if "/" in f["rel_path"] else f["rel_path"]] += 1
+                unmatched[f["rel_path"].split("/")[0]] += 1  # count by top-level directory
                 continue
             if want_kinds and rule["kind"] not in want_kinds:
                 continue
@@ -181,6 +205,10 @@ def main() -> int:
     ]
 
     ns = cfg["metacat"]["namespace"]
+    if "test" in ns:
+        sys.stderr.write(f"[warn] namespace {ns!r} contains 'test': FDP never migrates such namespaces "
+                         "to the central AmSC catalog\n")
+    given_checksums = read_json(args.checksums) if args.checksums else {}
     records = []
     seen = {}
     for label, f, rule, groups in classified:
@@ -192,15 +220,22 @@ def main() -> int:
         # "<ensemble>-a_log.1590.tar" so streams cannot collide.
         sdir = ens["streams"][label]["dir"]
         fname = base if base.startswith(sdir) else f"{sdir}_{base}"
+        if not NAME_OK.match(fname):
+            sys.exit(f"catalog name {fname!r} (from {f['path']}) uses characters outside FDP's allowed set "
+                     f"{NAME_CHARS}; rename the file or extend the naming rule")
         if fname in seen:
             sys.exit(
                 f"file name collision within namespace {ns}: {fname}\n  {seen[fname]}\n  {f['path']}\n"
                 "Stream directories must produce distinct basenames; rename or extend the naming rule."
             )
         seen[fname] = f["path"]
-        md = file_metadata(ens, cfg, storage, label, ens["streams"][label], f, rule, groups, ens_md)
+        md = file_metadata(ens, storage, label, ens["streams"][label], f, rule, groups, ens_md)
         md["lqcd.storage.filename"] = base
-        records.append({"namespace": ns, "name": fname, "size": f["size"], "metadata": md})
+        rec = {"namespace": ns, "name": fname, "size": f["size"], "metadata": md}
+        cs = given_checksums.get(fname) or given_checksums.get(base)
+        if cs:
+            rec["checksums"] = {args.checksum_algorithm: cs} if isinstance(cs, str) else dict(cs)
+        records.append(rec)
 
     kinds = Counter(r["metadata"]["lqcd.artifact.kind"] for r in records)
     out = {

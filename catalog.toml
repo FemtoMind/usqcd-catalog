@@ -1,17 +1,20 @@
 # Site configuration for the usqcd-catalog scripts.
 #
-# This file describes *where you are* (which catalog, which storage system,
-# which Python). Ensemble physics lives in ensembles/<name>.toml, not here.
+# This file describes *where you are* (which catalog, which storage systems,
+# optionally which Python). Ensemble physics lives in ensembles/<name>.toml,
+# not here.
 # Copy this file and edit it for your own site; nothing in scripts/ hard-codes
 # a path or UUID.
 
 [venv]
-# Interpreter with metacat-client (and globus-cli for transfers). Python >= 3.11
-# is required for the stdlib TOML reader. Built with:
-#   python3 -m venv ~/.amsc-fetch/venv
-#   ~/.amsc-fetch/venv/bin/pip install metacat-client globus-cli
-# Keep the venv on a filesystem that is not purged (home, not scratch).
-python = "/global/homes/m/mlwagman/.amsc-fetch/venv/bin/python3"
+# OPTIONAL. The scripts run with whatever `python3` invokes them; after
+# `pip install -e .` (into a venv or with --user) that interpreter has the
+# dependencies and nothing here is consulted. Set `python` only if the shell
+# helpers (bin/check_auth.sh, bin/metacat_login.sh, bin/untar_slurm.sh) should
+# use a specific interpreter rather than the `python3` on PATH, e.g. a venv
+# that holds metacat-client and globus-cli.
+# Keep any venv on a filesystem that is not purged (home, not scratch).
+# python = "/global/homes/m/mlwagman/.amsc-fetch/venv/bin/python3"
 
 [metacat]
 server_url = "https://metacat.fnal.gov:9443/amsc_meta_prod/app"
@@ -45,6 +48,9 @@ globus_collection = "0c1b254b-e32d-409c-bfe3-4a81fef25892"
 globus_label = "Fermi Data Platform LQCD"   # mapped collection; needs data_access consent + session reauth
 root = "/amsc/lqcd"
 https_base = "https://amsc.fnal.gov:2880"
+# dCache REST API (port 3880). attach_checksums.py --from-dcache asks it for
+# the checksum dCache computed on ingest: <dcache_api><path>?checksum=true
+dcache_api = "https://amsc.fnal.gov:3880/api/v1/namespace"
 
 [storage.fdp_public]
 system = "dcache"
@@ -52,6 +58,8 @@ site = "FNAL"
 globus_collection = "73edb319-d876-4143-b5fc-5a47c61b0c02"
 globus_label = "Fermi Data Platform Public Data"   # guest collection; anonymous reads, no consent
 root = "/amsc/public/lqcd"
+https_base = "https://amsc.fnal.gov:2880"
+dcache_api = "https://amsc.fnal.gov:3880/api/v1/namespace"
 
 [storage.nersc_dtn]
 system = "posix"

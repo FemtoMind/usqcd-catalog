@@ -23,23 +23,25 @@ cfg="${CATALOG_TOML:-$here/catalog.toml}"
 # Pull the two values out of catalog.toml with sed so this works with any
 # system python (tomllib needs 3.11; the login-node python3 may be older).
 PY="$(sed -n 's/^python *= *"\(.*\)".*/\1/p' "$cfg" | head -1)"
+PY="${PY:-python3}"                      # [venv].python is optional; default: python3 on PATH
 export METACAT_SERVER_URL="$(sed -n 's/^server_url *= *"\(.*\)".*/\1/p' "$cfg" | head -1)"
-venv_bin="$(dirname "${PY:-$(command -v python3)}")"
+# Run the metacat CLI through the interpreter so a venv or --user install both work.
+mc() { "$PY" -c 'import sys; from metacat.ui.metacat_ui import main; sys.argv[0] = "metacat"; main()' "$@"; }
 
 USER_NAME="${1:-${METACAT_USER:-$USER}}"
 METHOD="${METACAT_AUTH_METHOD:-password}"
 
-echo "MetaCat server: $METACAT_SERVER_URL"
+echo "MetaCat server: $METACAT_SERVER_URL  (client: $PY)"
 case "$METHOD" in
   password)
     echo ">>> metacat auth login -m password $USER_NAME   (FNAL Services password)"
-    "$venv_bin/metacat" auth login -m password "$USER_NAME"
+    mc auth login -m password "$USER_NAME"
     ;;
   token)
     echo ">>> htgettoken -i amsc -a htvaultprod.fnal.gov"
     htgettoken -i amsc -a htvaultprod.fnal.gov
-    "$venv_bin/metacat" auth login -m token "$USER_NAME"
+    mc auth login -m token "$USER_NAME"
     ;;
   *) echo "METACAT_AUTH_METHOD must be password or token" >&2; exit 2 ;;
 esac
-"$venv_bin/metacat" auth whoami
+mc auth whoami

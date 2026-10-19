@@ -65,14 +65,14 @@ description = "Gauge configuration in SciDAC/ILDG LIME format."
 ## 2. Run the pipeline
 
 ```
-PY=~/.amsc-fetch/venv/bin/python3      # or whatever catalog.toml [venv].python says
+module load python                       # or activate the venv; either way, where `pip install -e .` ran
 E=ensembles/<name>.toml
-$PY scripts/hpss_inventory.py $E       # metadata-only `hsi ls -lR`, minutes per TB
-$PY scripts/build_records.py  $E       # offline; read work/<name>/records.json
-$PY scripts/declare_records.py work/<name>/records.json --limit 5   # creates dataset + 5 files
-$PY scripts/retrieve_records.py <name> --diff work/<name>/records.json
-$PY scripts/declare_records.py work/<name>/records.json             # the rest
-$PY scripts/retrieve_records.py <name> --diff work/<name>/records.json   # must print OK
+python3 scripts/hpss_inventory.py  $E    # metadata-only `hsi ls -lR`, minutes per TB
+python3 scripts/build_records.py   $E    # offline; read work/<name>/records.json
+python3 scripts/declare_records.py work/<name>/records.json --limit 5   # creates dataset + 5 files
+python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json
+python3 scripts/declare_records.py work/<name>/records.json             # the rest
+python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json   # must print OK
 ```
 
 ## 3. Changing metadata later
@@ -80,7 +80,7 @@ $PY scripts/retrieve_records.py <name> --diff work/<name>/records.json   # must 
 Edit the TOML, rebuild, then
 
 ```
-$PY scripts/declare_records.py work/<name>/records.json --update-existing
+python3 scripts/declare_records.py work/<name>/records.json --update-existing
 ```
 
 which merges the new values onto every existing record (server-stamped

@@ -40,9 +40,9 @@ from catalog_common import (  # noqa: E402
 def existing_names(client, namespace: str, names: list[str]) -> set[str]:
     """Names (from `names`) that already exist in the namespace. Uses one MQL
     query for the whole namespace rather than N get_file round trips."""
-    # Declaring stamps lqcd.catalog.schema_version on every record, so this
-    # narrows the server-side scan to records this pipeline wrote; the names
-    # filter below is what matters.
+    # Every record this pipeline writes carries lqcd.artifact.kind, so the
+    # `present` clause narrows the server-side scan to those; the name filter
+    # below is what actually decides.
     found = set()
     wanted = set(names)
     q = f"files where namespace = \"{namespace}\" and lqcd.artifact.kind present"
@@ -59,6 +59,27 @@ def existing_names(client, namespace: str, names: list[str]) -> set[str]:
             except Exception:
                 pass
     return found
+
+
+REQUIRED_FIELDS = ("AmSC.common.type", "AmSC.common.description", "AmSC.common.location",
+                   "lqcd.ensemble", "lqcd.artifact.kind")
+
+
+def local_checks(files: list[dict]) -> list[str]:
+    """Problems that would make the server reject records.json; empty when clean."""
+    errors = []
+    names = [f["name"] for f in files]
+    if len(set(names)) != len(names):
+        errors.append("duplicate names in records.json")
+    for f in files:
+        md = f.get("metadata", {})
+        for k in REQUIRED_FIELDS:
+            if k not in md:
+                errors.append(f"{f['name']}: missing {k}")
+                break
+        if not isinstance(f.get("size"), int) or f["size"] < 0:
+            errors.append(f"{f['name']}: bad size {f.get('size')!r}")
+    return errors
 
 
 def main() -> int:
@@ -109,23 +130,13 @@ def main() -> int:
           f"({human_bytes(sum(f['size'] for f in new))} new)")
 
     # ---- local sanity checks (always), then server-side declare/validate
-    errors = []
-    names = [f["name"] for f in files]
-    if len(set(names)) != len(names):
-        errors.append("duplicate names in records.json")
-    for f in files:
-        md = f.get("metadata", {})
-        for k in ("AmSC.common.type", "AmSC.common.description", "AmSC.common.location", "lqcd.ensemble", "lqcd.artifact.kind"):
-            if k not in md:
-                errors.append(f"{f['name']}: missing {k}")
-                break
-        if not isinstance(f.get("size"), int) or f["size"] < 0:
-            errors.append(f"{f['name']}: bad size {f.get('size')!r}")
+    errors = local_checks(files)
     if errors:
         for e in errors[:10]:
             print(f"  ERROR {e}", file=sys.stderr)
         sys.exit(1)
-    print(f"local checks passed: {len(files)} records, {len(set(names))} unique names, required fields present")
+    print(f"local checks passed: {len(files)} records, {len({f['name'] for f in files})} unique names, "
+          "required fields present")
 
     declared = []
     if args.dry_run and ds is None:
@@ -135,8 +146,7 @@ def main() -> int:
     for i in range(0, len(new), args.batch_size):
         batch = new[i:i + args.batch_size]
         try:
-            out = client.declare_files(ds_did, files=batch, namespace=ns, dry_run=args.dry_run)
-            n = len(list(out)) if out is not None else len(batch)
+            client.declare_files(ds_did, files=batch, namespace=ns, dry_run=args.dry_run)
             declared += [f["name"] for f in batch]
             print(f"  {'[dry-run] validated' if args.dry_run else 'declared'} {i + len(batch)}/{len(new)}")
         except Exception as e:

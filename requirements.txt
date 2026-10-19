@@ -1,5 +1,8 @@
-# Only declare_records.py and retrieve_records.py need anything beyond the
-# standard library (Python >= 3.11 for tomllib). Install with
-#   pip install -r requirements.txt            (into a venv, or --user)
+# Equivalent to `pip install -e '.[transfer]'` (see pyproject.toml), for
+# people who prefer `pip install -r requirements.txt` into a venv or --user.
+# Only declare_records.py / retrieve_records.py import metacat-client; only
+# globus_transfer.py --submit/--status needs the globus CLI. The correlator
+# scripts need h5py + numpy ('.[reduce]'; the NERSC python module has both).
 metacat-client>=4.0     # MetaCat Python API + `metacat` CLI (auth, query)
+tomli>=2; python_version < "3.11"   # stdlib tomllib from 3.11 on
 globus-cli>=3.30        # only for the data-transfer step, not for metadata

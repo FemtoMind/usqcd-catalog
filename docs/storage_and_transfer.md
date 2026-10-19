@@ -26,7 +26,7 @@ without knowing the source site's local tools (`hsi` at NERSC).
 1. Find them (anonymous):
 
    ```
-   scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --stream a \
+   python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --stream a \
        --trajectory-min 1000 --trajectory-max 1200 --paths > paths.txt
    ```
 
@@ -47,14 +47,33 @@ Same records, one more location. The plan is a `transfer_records.py` step
 that takes a `retrieve_records.py` dump, submits one Globus task from the
 record's current collection to `fdp_lqcd`, and on success appends the new
 `globus://0c1b254b-.../amsc/lqcd/...` URL to the record (FNAL's ingest adds
-`fn.locations` with https/xrootd/globus forms of the same path). Globus
-checksum verification on that transfer is also the cheapest way to get
-sha256 values into the catalog, since HPSS stores none.
+`fn.locations` with https/xrootd/globus forms of the same path).
 
 ## Checksums
 
 HPSS has no stored hashes for these files (`hsi hashlist` reports none) and
 the generation-time copies on scratch are purged, so every record is declared
-without `checksums`. Options, in order of cost: have Globus compute them
-during the FDP backup transfer; stage from tape and hash on a DTN; ask the
-generating group for any hashes kept with the HMC logs.
+without `checksums`. The cheap route is the FDP backup itself: dCache
+computes a checksum for every file it ingests and serves it from its REST
+API (`https://amsc.fnal.gov:3880/api/v1/namespace/<path>?checksum=true`,
+bearer token required). That is exactly what FDP's
+`examples/generate_metadata_remote.py` reads, and
+`scripts/attach_checksums.py --from-dcache` does the same for records already
+in our catalog:
+
+```
+python3 scripts/attach_checksums.py cl3_32_64_b6p5_m0p1788 --from-dcache           # report to work/<ens>/checksums.json
+python3 scripts/attach_checksums.py cl3_32_64_b6p5_m0p1788 --from-dcache --apply   # update_file() on each record
+```
+
+It finds the dCache path from each record's locations (an `https://` URL on
+a storage entry's `https_base`, or a `globus://` URL on an FDP collection in
+`catalog.toml`), so it only has something to do for files that have been
+copied to FDP. Hashes computed anywhere else go in with
+`--from-json hashes.json`, or at build time with
+`build_records.py --checksums hashes.json`.
+
+Note that dCache's default algorithm is adler32; ask for sha256 at transfer
+time (`globus transfer --sync-level checksum` verifies but does not publish)
+or compute it on a DTN if you need a cryptographic hash. The catalog stores
+whatever algorithms it is given, keyed by name.

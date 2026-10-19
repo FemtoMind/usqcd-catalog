@@ -21,6 +21,7 @@
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="$(sed -n 's/^python *= *"\(.*\)".*/\1/p' "$here/catalog.toml" | head -1)"
+command -v module >/dev/null 2>&1 && module load python   # NERSC: python3 with tomllib
 mkdir -p "$here/slurm_logs"
 "${PY:-python3}" "$here/scripts/untar_manifest.py" "$1" --dest-root "$2" \
     --dest-template "${3:-{dir_name}/{rel_path}}" --jobs "${4:-16}"

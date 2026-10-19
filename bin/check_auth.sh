@@ -14,19 +14,23 @@ cfg="${CATALOG_TOML:-$here/catalog.toml}"
 # Pull the two values out of catalog.toml with sed so this works with any
 # system python (tomllib needs 3.11; the login-node python3 may be older).
 PY="$(sed -n 's/^python *= *"\(.*\)".*/\1/p' "$cfg" | head -1)"
+PY="${PY:-python3}"                      # [venv].python is optional; default: python3 on PATH
 export METACAT_SERVER_URL="$(sed -n 's/^server_url *= *"\(.*\)".*/\1/p' "$cfg" | head -1)"
-venv_bin="$(dirname "${PY:-$(command -v python3)}")"
+# The `metacat` CLI is a console script of metacat-client; invoking it through
+# the interpreter works whether it was installed into a venv or with --user.
+mc() { "$PY" -c 'import sys; from metacat.ui.metacat_ui import main; sys.argv[0] = "metacat"; main()' "$@"; }
+gl_bin="$(command -v globus || echo "$(dirname "$(command -v "$PY")")/globus")"
 
-mc=0; gl=0
-echo "--- MetaCat ($METACAT_SERVER_URL)"
-if "$venv_bin/metacat" auth whoami 2>&1; then mc=1; else
+mc_ok=0; gl_ok=0
+echo "--- MetaCat ($METACAT_SERVER_URL) via $PY"
+if mc auth whoami 2>&1; then mc_ok=1; else
   echo "no valid token: reads work anonymously; to declare run  bin/metacat_login.sh"
 fi
 echo "--- Globus"
-if [ -x "$venv_bin/globus" ] && "$venv_bin/globus" whoami 2>&1; then gl=1; else
-  echo "not logged in (only matters for transfers): $venv_bin/globus login"
+if [ -x "$gl_bin" ] && "$gl_bin" whoami 2>&1; then gl_ok=1; else
+  echo "not logged in (only matters for transfers): globus login   (pip install globus-cli if missing)"
 fi
-[ $mc -eq 1 ] && [ $gl -eq 1 ] && exit 0
-[ $mc -eq 0 ] && [ $gl -eq 0 ] && exit 4
-[ $mc -eq 0 ] && exit 2
+[ $mc_ok -eq 1 ] && [ $gl_ok -eq 1 ] && exit 0
+[ $mc_ok -eq 0 ] && [ $gl_ok -eq 0 ] && exit 4
+[ $mc_ok -eq 0 ] && exit 2
 exit 3

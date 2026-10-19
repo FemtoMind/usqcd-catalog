@@ -35,8 +35,9 @@ convention hardens. Comments as GitHub issues are easiest.
    redundancy, versus joining against the dataset record?
 
 7. **Names.** Catalog file names are the storage basenames (stream-prefixed on
-   collision). Other groups' basenames may not be unique across streams or
-   ensembles; is a `<ensemble>/<stream>/<basename>` style name preferable?
+   collision). FDP allows `/` in names, so `<ensemble>/<stream>/<basename>`
+   is legal; is it preferable for groups whose basenames are not unique
+   across streams or ensembles?
 
 8. **Required fields.** Currently only `ensemble.name`. Should `lqcd.beta`,
    `lqcd.Nx..Nt` and `lqcd.action.fermion` be required too, so discovery

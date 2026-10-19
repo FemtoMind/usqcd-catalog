@@ -98,9 +98,10 @@ def list_ensembles(client, ns: str) -> list[dict]:
         did = f"{d['namespace']}:{d['name']}"
         full = client.get_dataset(did) or {}
         md = full.get("metadata") or d.get("metadata") or {}
-        if md.get("lqcd.artifact.kind") not in ("gauge_ensemble", None):
-            continue
-        if "lqcd.ensemble" not in md and md.get("lqcd.artifact.kind") != "gauge_ensemble":
+        # Keep datasets this pipeline wrote (kind = gauge_ensemble) and ones
+        # with no kind at all that still name an ensemble; skip other kinds.
+        kind = md.get("lqcd.artifact.kind")
+        if kind != "gauge_ensemble" and not (kind is None and "lqcd.ensemble" in md):
             continue
         out.append({
             "did": did, "file_count": full.get("file_count"),
@@ -114,6 +115,8 @@ def list_ensembles(client, ns: str) -> list[dict]:
 
 
 def compare(expected: dict, got: dict) -> dict:
+    """Diff records.json (expected) against a catalog dump (got), ignoring
+    server-stamped fields; numbers are compared with a 1e-9 tolerance."""
     exp_files = {f["name"]: f for f in expected["files"]}
     got_files = {f["name"]: f for f in got["files"]}
     missing = sorted(set(exp_files) - set(got_files))
@@ -199,7 +202,7 @@ def main() -> int:
               "checksums": r.get("checksums") or {}, "metadata": r.get("metadata") or {}} for r in hits]
     dump = {
         "retrieved_at": utcnow(), "server": cfg["metacat"]["server_url"], "mql": mql,
-        "dataset": {"did": did, "metadata": (ds or {}).get("metadata") or {}, "file_count": (ds or {}).get("file_count")},
+        "dataset": {"did": did, "metadata": ds.get("metadata") or {}, "file_count": ds.get("file_count")},
         "summary": {
             "n_files": len(files), "total_bytes": sum(f["size"] or 0 for f in files),
             "kinds": dict(Counter(f["metadata"].get("lqcd.artifact.kind") for f in files)),

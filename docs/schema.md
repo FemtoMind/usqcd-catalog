@@ -90,7 +90,7 @@ Taken verbatim from the Chroma HMC input. Names follow the existing
 
 | Field | Value |
 |---|---|
-| `name` | file basename; must be unique in the namespace (stream suffix is in the name) |
+| `name` | catalog name, see "Names" below; unique in the namespace |
 | `size` | bytes from the HPSS listing |
 | `checksums` | absent (see README) |
 | `AmSC.common.type` | `"artifact"` |
@@ -114,6 +114,34 @@ Taken verbatim from the Chroma HMC input. Names follow the existing
 
 Fields FNAL adds after ingest (`fn.locations`, `AmSC.common.fqn`, `.tags`,
 `.version`) are never set here and are ignored by `retrieve_records.py --diff`.
+
+## Names (FDP rules, enforced by build_records.py)
+
+These come from FNAL's FDP documentation
+(https://github.com/FNAL-SCD/fdpdocs/blob/main/docs/metadata.md):
+
+* A file name must be **unique within the namespace**, across all datasets.
+* Allowed characters: `A-Z a-z 0-9 - . _ /`. Slashes are legal, so
+  `<stream>/<basename>` style names are an option if a group prefers them.
+* A namespace whose name contains `test` is never migrated to the central
+  AmSC catalog; use it for experiments only.
+
+Our rule: the storage basename, prefixed with `<stream dir>_` when the
+basename does not already start with the stream directory name (NPLQCD
+configs already embed the stream; `log.1590.tar` becomes
+`<ensemble>-a_log.1590.tar`). The original basename is always kept in
+`lqcd.storage.filename`.
+
+## Checksums (optional)
+
+`checksums` is MetaCat's own per-file attribute, `{"sha256": "<hex>", ...}`.
+Records are declared without it when the bytes are only on tape. Add hashes
+at build time with `build_records.py --checksums hashes.json`, or later with
+`attach_checksums.py`: `--from-dcache` reads the checksum FDP's dCache
+computed on ingest (its REST API, as FDP's `generate_metadata_remote.py`
+does) for any record whose location is on an FDP collection; `--from-json`
+takes hashes computed elsewhere. Either way `lqcd.checksum.source` records
+where the value came from.
 
 ## Reserved for the next artifact kinds
 

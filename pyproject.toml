@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+# Dependency-only project: `pip install -e .` gives the interpreter the
+# packages the scripts import and installs nothing else. The scripts are run
+# directly, `python3 scripts/<name>.py ...`, from any working directory.
+[project]
+name = "usqcd-catalog"
+version = "0.1.0"
+description = "Catalog USQCD lattice-QCD data in the AmSC MetaCat catalog and move it between sites"
+requires-python = ">=3.9"
+dependencies = [
+    "metacat-client>=4.0",
+    "tomli>=2; python_version < '3.11'",   # stdlib tomllib from 3.11 on
+]
+
+[project.optional-dependencies]
+transfer = ["globus-cli>=3.30"]   # globus_transfer.py --submit / --status
+reduce = ["h5py", "numpy"]        # reduce_corrs.py, merge_corrs.py (NERSC: `module load python` has both)
+
+[tool.setuptools]
+packages = []

@@ -45,10 +45,11 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from catalog_common import human_bytes, load_catalog_config, read_json, utcnow, write_json  # noqa: E402
+from catalog_common import dest_path, human_bytes, load_catalog_config, read_json, utcnow, write_json  # noqa: E402
 
 
 def globus_bin(cfg: dict) -> str:
+    """The globus CLI: next to an optional catalog.toml [venv].python, else from PATH."""
     py = cfg.get("venv", {}).get("python")
     if py:
         cand = Path(py).parent / "globus"
@@ -64,8 +65,9 @@ def run_globus(cfg: dict, *args: str) -> tuple[int, str]:
 
 
 def select_files(manifest: dict, args) -> list[dict]:
+    """Manifest entries that pass the --dirs / --trajectory-min/-max / --limit filters."""
     out = []
-    for d, v in manifest["dirs"].items():
+    for v in manifest["dirs"].values():
         if args.dirs and v["dir_name"] not in args.dirs:
             continue
         for f in v["files"]:
@@ -78,12 +80,6 @@ def select_files(manifest: dict, args) -> list[dict]:
     if args.limit:
         out = out[: args.limit]
     return out
-
-
-def dest_path(f: dict, args) -> str:
-    fields = dict(f, basename=f["path"].rsplit("/", 1)[1])
-    rel = args.dest_template.format(**fields)
-    return os.path.join(args.dest_root, rel)
 
 
 def main() -> int:
@@ -131,12 +127,13 @@ def main() -> int:
     files = select_files(manifest, args)
     work = Path(args.work) if args.work else Path(args.manifest).resolve().parent
     work.mkdir(parents=True, exist_ok=True)
-    pairs = [(f["path"], dest_path(f, args), f["size"]) for f in files]
-    total = sum(p[2] for p in pairs)
+    pairs = [(f["path"], dest_path(f, args.dest_root, args.dest_template), f["size"]) for f in files]
+    total = sum(size for _, _, size in pairs)
 
     # ---- verify local destination
     if args.verify:
         ok, missing, bad = [], [], []
+        bytes_ok = 0
         for src, dst, size in pairs:
             if not os.path.exists(dst):
                 missing.append(dst)
@@ -144,9 +141,10 @@ def main() -> int:
                 bad.append({"path": dst, "expected": size, "actual": os.path.getsize(dst)})
             else:
                 ok.append(dst)
+                bytes_ok += size
         rep = {"checked_at": utcnow(), "manifest": str(Path(args.manifest).resolve()), "dest_root": args.dest_root,
                "n_ok": len(ok), "n_missing": len(missing), "n_size_mismatch": len(bad),
-               "bytes_ok": sum(s for _, d, s in pairs if d in set(ok)), "missing": missing, "size_mismatch": bad, "ok": ok}
+               "bytes_ok": bytes_ok, "missing": missing, "size_mismatch": bad, "ok": ok}
         write_json(work / "verify.json", rep)
         print(f"{len(ok)} ok ({human_bytes(rep['bytes_ok'])}), {len(missing)} missing, {len(bad)} size mismatch; "
               f"wrote {work / 'verify.json'}")
