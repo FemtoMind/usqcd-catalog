@@ -1,0 +1,66 @@
+# Derived dataset: all-to-all sparse propagators on cl3_32_48_b6p1_m0p2450 (stream b)
+#
+# HPSS layout (clover-iso/cl3_32_48_b6p1_m0p2450_b/sparseprops-all-t/):
+#   <TRAJ>-<TSRC>.tar               one tar per configuration and source timeslice,
+#                                   TSRC = 0..47 (all 48 timeslices): 100 configurations
+#                                   x 48 = 4800 archives, 29 GB each
+#   <TRAJ>-<TSRC>-point-source.tar  same for 5 configurations with unsmeared point sources
+# Members: <TRAJ>/sprop_x<X>y<Y>z<Z>t<TSRC>_uS2.1_S2.1.prop (peeked: 13000-0.tar), 56.6 MB
+# each, 512 per archive (8^3 sparse grid). Sources on every sparse site of every
+# timeslice make this an all-to-all (sparse-to-sparse) propagator set, stored one
+# source timeslice per archive.
+
+[ensemble]
+name = "cl3_32_48_b6p1_m0p2450_sparseprops_a2a"
+parent = "cl3_32_48_b6p1_m0p2450"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 32^3x48 beta=6.1 sparse propagators (all-to-all, stream b)"
+generated_by = "NPLQCD (A. Grebe, 2025)"
+code = "Chroma + QUDA"
+description = """\
+All-to-all sparsened quark propagators on stream b of the \
+cl3_32_48_b6p1_m0p2450 ensemble (Nf=3 stout-clover, 32^3 x 48, beta = 6.1, \
+m = -0.2450): sources on every site of an 8^3 sparse grid (sparsening factor \
+4) on every one of the 48 timeslices, stored as one tar archive per \
+configuration and source timeslice (512 propagators each), with \
+gauge-invariant Gaussian width-2.1 source and sink smearing; 100 \
+configurations, plus 5 configurations with unsmeared point sources. The \
+all-to-all variety is the input for matrix-element calculations and meson \
+fields. Each archive is one catalog record with lqcd.parent.* naming its \
+configuration and lqcd.prop.tsrc its source timeslice."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "all-to-all"
+storage_layout = "one archive per configuration and source timeslice; all 48 timeslices present"
+file_format = "NPLQCD sprop binary, one file per source position"
+sparse_grid = "8^3"
+sparsening_factor = 4
+n_sources_per_timeslice = 512
+n_source_timeslices = 48
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 2.1
+smearing_steps = 20
+quark_mass = -0.2450
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS2.1_S2.1.prop"
+
+[streams.b]
+dir = "cl3_32_48_b6p1_m0p2450_b"
+
+[[files]]
+pattern = '^sparseprops-all-t/(?P<trajectory>\d+)-(?P<tsrc>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "cl3_32_48_b6p1_m0p2450_b_cfg_{trajectory}.lime"
+description = "Tar archive holding the source-timeslice-tsrc slice of an all-to-all sparse propagator set for one configuration: 512 smeared-source sprop files, one per site of the 8^3 grid."
+
+[[files]]
+pattern = '^sparseprops-all-t/(?P<trajectory>\d+)-(?P<tsrc>\d+)-point-source\.tar$'
+kind = "sparse_propagator_all_to_all"
+format = "application/x-tar"
+parent_name = "cl3_32_48_b6p1_m0p2450_b_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.variant" = "point-source", "lqcd.prop.source_type" = "POINT_SOURCE", "lqcd.prop.smearing_width" = 0.0 }
+description = "Tar archive holding the source-timeslice-tsrc slice of an all-to-all sparse propagator set with unsmeared point sources for one configuration."

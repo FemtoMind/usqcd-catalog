@@ -224,6 +224,10 @@ work/                   generated per-ensemble JSON (gitignored)
 - [x] derived datasets: `ensembles/<ens>_<product>.toml` with `parent = "<ens>"`, records
       carry `lqcd.parent.*` back to the configuration; first one
       `lqcd:cl3_48_96_b6p5_m0p1788_sparseprops` (10066 records, 58.7 TB) declared 2026-10-19
-- [ ] sparse propagators for the other ensembles (layouts surveyed; see docs/schema.md
-      "Derived datasets"), then correlators
+- [x] sparse propagators for all cl3 ensembles with any on HPSS: 10 timeslice-to-all datasets
+      (`<ens>_sparseprops`, plus `cl3_24_48..._sparseprops_legacy` for the 2021 set on the
+      original stream) and 1 all-to-all dataset (`cl3_32_48_b6p1_m0p2450_sparseprops_a2a`),
+      ~40k records, ~600 TB, declared 2026-10-19 and round-trip verified. cl3_32_64 (ensemble A)
+      has no propagators under clover-iso on HPSS.
+- [ ] correlators (cl3), then cl21 sparse propagators (both topologies) and correlators
 - [ ] checksums: back up to FDP, then `attach_checksums.py --from-dcache`

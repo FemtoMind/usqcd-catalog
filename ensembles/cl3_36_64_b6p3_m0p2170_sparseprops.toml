@@ -1,0 +1,60 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl3_36_64_b6p3_m0p2170
+#
+# HPSS layout (clover-iso/cl3_36_64_b6p3_m0p2170/):
+#   sparseprops-t0/<TRAJ>.tar (+ .idx, htar)   one archive per configuration, source timeslice 0
+# No xml-t* directory survives for this ensemble. Smearing/solver taken from
+# the same production setup verified on cl3_36_64_b6p3_m0p2050 (width 4.0,
+# 100 steps, QUDA reliable IBiCGStab MP to 1e-12); member names carry the
+# width (uS4.0_S4.0).
+
+[ensemble]
+name = "cl3_36_64_b6p3_m0p2170_sparseprops"
+parent = "cl3_36_64_b6p3_m0p2170"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 36^3x64 beta=6.3 m=-0.2170 sparse propagators (timeslice-to-all)"
+generated_by = "NPLQCD (W. Detmold)"
+code = "Chroma 3.44.x + QUDA"
+description = """\
+Timeslice-to-all sparsened quark propagators on the cl3_36_64_b6p3_m0p2170 \
+ensemble (Nf=3 stout-clover, 36^3 x 64, beta = 6.3, m = -0.2170): one htar \
+archive per gauge configuration at source timeslice 0, each holding the \
+propagators from every source position on a 6^3 sparse grid (sparsening \
+factor 6) with gauge-invariant Gaussian source and sink smearing of width \
+4.0 and 100 steps (setup as verified on the m = -0.2050 partner ensemble; no \
+run XML is archived for this one). Input to the NPLQCD H-dibaryon \
+correlators. Each archive is one catalog record with lqcd.parent.* naming \
+its configuration."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+file_format = "NPLQCD sprop binary, one file per source position"
+sparse_grid = "6^3"
+sparsening_factor = 6
+n_sources_per_timeslice = 216
+source_timeslices = [0]
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 4.0
+smearing_steps = 100
+smearing_steps_source = "same production setup as cl3_36_64_b6p3_m0p2050 (verified there); no run XML archived for this ensemble"
+link_smearing = "none"
+solver = "RELIABLE_IBICGSTAB_MP_CLOVER_INVERTER"
+quark_mass = -0.2170
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS4.0_S4.0.prop"
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "cl3_36_64_b6p3_m0p2170_cfg_{trajectory}.lime"
+description = "htar archive of timeslice-to-all sparse propagators for one configuration at source timeslice 0: 216 sprop files, one per source position on the 6^3 grid."
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "cl3_36_64_b6p3_m0p2170_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."

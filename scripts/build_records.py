@@ -272,6 +272,10 @@ def main() -> int:
     per_stream: dict[str, dict] = {}
     excluded = Counter()
     for dir_label, st in inv["streams"].items():
+        if dir_label not in ens["streams"]:
+            # A derived dataset may cover only some of the parent's streams; the
+            # parent's inventory still lists all of them.
+            continue
         # [streams.<x>].exclude = ['regex', ...]: files in this stream's directory
         # to leave out (e.g. a copy of another stream's configuration kept as
         # the branch point).
@@ -293,8 +297,12 @@ def main() -> int:
             s = per_stream.setdefault(label, {"n_configs": 0, "n_config_archives": 0, "n_files": 0,
                                               "trajs": [], "other_trajs": []})
             s["n_files"] += 1
-            if rule["kind"] not in ("gauge_config", "gauge_config_archive") and "trajectory" in groups:
-                s["other_trajs"].append(int(groups["trajectory"]))   # used only when a stream has no configs
+            if rule["kind"] not in ("gauge_config", "gauge_config_archive"):
+                # used only when a stream has no configs (derived datasets)
+                if "trajectory" in groups:
+                    s["other_trajs"].append(int(groups["trajectory"]))
+                if "trajectory_min" in groups and "trajectory_max" in groups:
+                    s["other_trajs"] += [int(groups["trajectory_min"]), int(groups["trajectory_max"])]
             if rule["kind"] == "gauge_config":
                 s["n_configs"] += 1
                 s["trajs"].append(int(groups["trajectory"]))

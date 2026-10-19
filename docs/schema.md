@@ -208,13 +208,27 @@ Catalog names for derived products are `"<stream dir>/<path inside it>"`
 (`name_style = "path"`), since basenames like `1000.tar` repeat across
 subdirectories.
 
-Kinds in use: `sparse_propagator_archive` (one tar/htar per configuration
-and source timeslice, members `<traj>/sprop_x<X>y<Y>z<Z>t<T>_uS<w>_S<w>.prop`),
-`propagator_run_xml_archive` (the Chroma input/output XML of every solve),
-`archive_index` (htar `.idx`). `lqcd.prop.*` fields: `kind`, `file_format`,
-`sparse_grid`, `sparsening_factor`, `n_sources_per_timeslice`,
-`source_timeslices`, `source_type`, `sink_type`, `smearing_kind`,
-`smearing_width`, `smearing_steps`, `link_smearing`, `solver`,
-`solver_rsd_target`, `solver_max_iter`, `quark_mass`, `member_name_template`,
-`tsrc` (per file), `variant` (per file, where several solver variants exist).
-Correlators will follow the same pattern with `lqcd.corr.*`.
+Sparse propagators come in two top-level kinds, kept in separate datasets
+because they serve different purposes:
+
+| `lqcd.artifact.kind` | `lqcd.prop.topology` | what |
+|---|---|---|
+| `sparse_propagator_timeslice_to_all` | `timeslice-to-all` | sources on one timeslice (per archive `lqcd.prop.tsrc`); spectroscopy input |
+| `sparse_propagator_all_to_all` | `all-to-all` | sources on every sparse site of every timeslice, stored one source timeslice per archive; matrix elements and meson fields |
+
+Alongside: `propagator_run_xml_archive` (the Chroma input/output XML of
+every solve, which is where smearing and solver settings are verified) and
+`archive_index` (htar `.idx`). One archive normally holds all source
+positions for one configuration and one source timeslice, members
+`<traj>/sprop_x<X>y<Y>z<Z>t<T>_uS<w_src>_S<w_snk>.prop`; range archives
+(100 configurations) carry `lqcd.trajectory_min/max` instead.
+
+`lqcd.prop.*` fields: `kind`, `topology`, `file_format`, `sparse_grid`,
+`sparsening_factor`, `n_sources_per_timeslice`, `source_timeslices` (or
+`n_source_timeslices` for all-to-all), `source_type`, `sink_type`,
+`smearing_kind`, `smearing_width`, `smearing_steps`, `smearing_steps_source`,
+`link_smearing`, `solver`, `solver_rsd_target`, `solver_max_iter`,
+`quark_mass`, `member_name_template`, `members_per_archive`, and per file
+`tsrc`, `variant` (solver variant or `point-source`), `generation` (when
+several productions coexist, e.g. cl3_32_48). Correlators will follow the
+same pattern with `lqcd.corr.*`.

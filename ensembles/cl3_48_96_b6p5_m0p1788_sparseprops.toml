@@ -45,6 +45,7 @@ naming the configuration it was computed on."""
 # Dataset-level facts about the product (flattened to lqcd.*).
 [derived.prop]
 kind = "sparse_propagator"
+topology = "timeslice-to-all"     # sources on one timeslice; "all-to-all" sets are separate datasets/kinds
 file_format = "NPLQCD sprop binary, one file per source position"
 sparse_grid = "6^3"
 sparsening_factor = 8
@@ -66,10 +67,10 @@ member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS6.0_S6.0.prop"
 # [files.meta] adds constant fields to every record the rule produces.
 [[files]]
 pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
-kind = "sparse_propagator_archive"
+kind = "sparse_propagator_timeslice_to_all"
 format = "application/x-tar"
 parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
-description = "Archive of sparse propagators for one configuration and one source timeslice: 216 sprop files, one per source position on the 6^3 grid. htar archives (with .idx alongside) allow single-member extraction."
+description = "Archive of timeslice-to-all sparse propagators for one configuration and one source timeslice: 216 sprop files, one per source position on the 6^3 grid. htar archives (with .idx alongside) allow single-member extraction."
 
 [[files]]
 pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar\.idx$'
@@ -80,19 +81,19 @@ description = "htar index for the propagator archive of the same name."
 
 [[files]]
 pattern = '^sparseprops-t0/chroma-props/(?P<trajectory>\d+)\.tar$'
-kind = "sparse_propagator_archive"
+kind = "sparse_propagator_timeslice_to_all"
 format = "application/x-tar"
 parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
 meta = { "lqcd.prop.tsrc" = 0, "lqcd.prop.variant" = "chroma-props" }
-description = "Archive of sparse propagators at source timeslice 0, Chroma solver variant."
+description = "Archive of timeslice-to-all sparse propagators at source timeslice 0, Chroma solver variant."
 
 [[files]]
 pattern = '^sparseprops-t0/qc-props/(?P<trajectory>\d+)\.tar$'
-kind = "sparse_propagator_archive"
+kind = "sparse_propagator_timeslice_to_all"
 format = "application/x-tar"
 parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
 meta = { "lqcd.prop.tsrc" = 0, "lqcd.prop.variant" = "qc-props" }
-description = "Archive of sparse propagators at source timeslice 0, qc solver variant."
+description = "Archive of timeslice-to-all sparse propagators at source timeslice 0, qc solver variant."
 
 [[files]]
 pattern = '^xml-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'

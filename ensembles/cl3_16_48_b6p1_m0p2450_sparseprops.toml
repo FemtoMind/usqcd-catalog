@@ -1,0 +1,65 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl3_16_48_b6p1_m0p2450
+#
+# HPSS layout (clover-iso/cl3_16_48_b6p1_m0p2450/sparseprops/a/):
+#   <TRAJ_MIN>-<TRAJ_MAX>.tar (+ .idx, htar)   100 configurations per archive, stream a only
+# Members: <TRAJ>/sprop_x<X>y<Y>z<Z>t<T>_uS2.1_S2.1.prop for t in {0, 8, 16, 24, 32, 40}
+# and 64 source positions (4^3 grid, sparsening 4): 38400 members per archive
+# (verified with htar -tvf on 1000-1990.tar). Smearing width 2.1 with 20 steps
+# (H-dibaryon analysis setup, row H of ensembles/sources/ensemble_observables.csv;
+# the earlier variational paper documents 20 steps for width 2.1).
+# Only stream a has propagators on HPSS.
+
+[ensemble]
+name = "cl3_16_48_b6p1_m0p2450_sparseprops"
+parent = "cl3_16_48_b6p1_m0p2450"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 16^3x48 beta=6.1 sparse propagators (timeslice-to-all, stream a)"
+generated_by = "NPLQCD (A. Grebe)"
+code = "Chroma + QUDA"
+description = """\
+Timeslice-to-all sparsened quark propagators on stream a of the \
+cl3_16_48_b6p1_m0p2450 ensemble (Nf=3 stout-clover, 16^3 x 48, beta = 6.1, \
+m = -0.2450): htar archives of 100 configurations each, holding for every \
+configuration the propagators from all 64 source positions of a 4^3 sparse \
+grid (sparsening factor 4) on six source timeslices (t = 0, 8, 16, 24, 32, \
+40), with gauge-invariant Gaussian source and sink smearing of width 2.1 and \
+20 steps. Input to the NPLQCD H-dibaryon correlators. Each archive is one \
+catalog record with lqcd.trajectory_min/max and lqcd.parent.* naming the \
+stream."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+file_format = "NPLQCD sprop binary, one file per source position"
+sparse_grid = "4^3"
+sparsening_factor = 4
+n_sources_per_timeslice = 64
+source_timeslices = [0, 8, 16, 24, 32, 40]
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 2.1
+smearing_steps = 20
+smearing_steps_source = "H-dibaryon analysis setup (ensemble_observables.csv row H); member names carry uS2.1_S2.1"
+quark_mass = -0.2450
+configs_per_archive = 100
+members_per_archive = 38400
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS2.1_S2.1.prop"
+
+# All eight streams share the parent directory; the archives live in
+# sparseprops/<stream>/ so the stream comes from the path.
+[streams.shared]
+dir = "cl3_16_48_b6p1_m0p2450"
+
+[[files]]
+pattern = '^sparseprops/(?P<stream>[a-h])/(?P<trajectory_min>\d+)-(?P<trajectory_max>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-htar"
+description = "htar archive of timeslice-to-all sparse propagators for 100 configurations (trajectory range in the name), six source timeslices and 64 source positions each; members <TRAJ>/sprop_x<X>y<Y>z<Z>t<T>_uS2.1_S2.1.prop."
+
+[[files]]
+pattern = '^sparseprops/(?P<stream>[a-h])/(?P<trajectory_min>\d+)-(?P<trajectory_max>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+description = "htar index for the propagator archive of the same name."

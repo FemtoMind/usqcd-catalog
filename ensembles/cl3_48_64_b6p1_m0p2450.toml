@@ -63,6 +63,12 @@ save_interval = 10
 [streams.main]
 dir = "cl3_48_64_b6p1_m0p2450"
 note = "No cfgs directory on HPSS; the directory holds analysis output only."
+[streams.a]
+dir = "cl3_48_64_b6p1_m0p2450_a"
+note = "No cfgs directory on HPSS; sparse propagators and contraction databases only."
+[streams.b]
+dir = "cl3_48_64_b6p1_m0p2450_b"
+note = "No cfgs directory on HPSS; sparse propagators and 2012 analysis output only."
 
 [[files]]
 pattern = '^cfgs/.+_cfg_(?P<trajectory>\d+)\.lime$'

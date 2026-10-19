@@ -1,0 +1,56 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl3_48_64_b6p1_m0p2450 (streams a, b)
+#
+# HPSS layout:
+#   clover-iso/cl3_48_64_b6p1_m0p2450_a/sparseprops-t0/<TRAJ>.tar   683 archives (2024)
+#   clover-iso/cl3_48_64_b6p1_m0p2450_b/sparseprops-t0/<TRAJ>.tar   576 archives
+# Plain tar, 38.7 GB each; members <TRAJ>/sprop_x<X>y<Y>z<Z>t0_uS2.1_S2.1.prop,
+# 75.5 MB (peeked: _a/2230.tar). 8^3 sparse grid (sparsening 6), width 2.1 with
+# 20 steps (H-dibaryon row K setup). The configurations of these streams are
+# not archived on NERSC HPSS.
+
+[ensemble]
+name = "cl3_48_64_b6p1_m0p2450_sparseprops"
+parent = "cl3_48_64_b6p1_m0p2450"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 48^3x64 beta=6.1 sparse propagators (timeslice-to-all)"
+generated_by = "NPLQCD (A. Grebe, 2024)"
+code = "Chroma + QUDA"
+description = """\
+Timeslice-to-all sparsened quark propagators on streams a and b of the \
+cl3_48_64_b6p1_m0p2450 ensemble (Nf=3 stout-clover, 48^3 x 64, beta = 6.1, \
+m = -0.2450): one tar archive per gauge configuration at source timeslice 0, \
+each holding the propagators from every source position on an 8^3 sparse \
+grid (sparsening factor 6) with gauge-invariant Gaussian source and sink \
+smearing of width 2.1 and 20 steps. The configurations themselves are not on \
+NERSC HPSS. Input to the NPLQCD H-dibaryon correlators. Each archive is one \
+catalog record with lqcd.parent.* naming its configuration by stream and \
+trajectory."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+file_format = "NPLQCD sprop binary, one file per source position"
+sparse_grid = "8^3"
+sparsening_factor = 6
+n_sources_per_timeslice = 512
+source_timeslices = [0]
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 2.1
+smearing_steps = 20
+smearing_steps_source = "H-dibaryon analysis setup (ensemble_observables.csv row K); member names carry uS2.1_S2.1"
+quark_mass = -0.2450
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t0_uS2.1_S2.1.prop"
+
+[streams.a]
+dir = "cl3_48_64_b6p1_m0p2450_a"
+[streams.b]
+dir = "cl3_48_64_b6p1_m0p2450_b"
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+description = "Tar archive of timeslice-to-all sparse propagators for one configuration at source timeslice 0: 512 sprop files, one per source position on the 8^3 grid."

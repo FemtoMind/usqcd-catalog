@@ -1,0 +1,83 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl3_32_48_b6p1_m0p2450
+#
+# Three generations of timeslice-to-all propagators live under the three stream
+# directories (all 8^3 sparse grid, sparsening factor 4, 512 source positions):
+#   main: sparseprops/<TRAJ>.tar (+ .idx on 507 of 841)   2021 TACC production, source
+#         timeslice 1, FOUR source/sink smearing combinations per position
+#         (uS2.1_S2.1, uS2.1_S4.7, uS4.7_S2.1, uS4.7_S4.7): 2048 members, 56.6 MB each
+#         (verified with htar -tvf on 1000.tar). Step counts for width 4.7 unrecorded.
+#   _b:   sparseprops/cl3_32_48_b6p1_m0p2450_<TRAJ>_src_t0.h5   2020, HDF5, one file per
+#         configuration at source timeslice 0 (116 GB each)
+#   _b:   sparseprops-t0/<TRAJ>.tar     2024-2025 production at t = 0
+#   _c:   sparseprops-t0/<TRAJ>.tar     2024 production at t = 0, members
+#         <TRAJ>/sprop_x<X>y<Y>z<Z>t0_uS2.1_S2.1.prop (peeked: 11570.tar), 56.6 MB each
+# The all-to-all set on _b (sparseprops-all-t) is a separate dataset,
+# cl3_32_48_b6p1_m0p2450_sparseprops_a2a.
+# Smearing: width 2.1 with 20 steps is the H-dibaryon analysis setup (row J);
+# per-rule meta records what each generation used.
+
+[ensemble]
+name = "cl3_32_48_b6p1_m0p2450_sparseprops"
+parent = "cl3_32_48_b6p1_m0p2450"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 32^3x48 beta=6.1 sparse propagators (timeslice-to-all)"
+generated_by = "NPLQCD (W. Detmold, A. Grebe; 2020-2025)"
+code = "Chroma + QUDA"
+description = """\
+Timeslice-to-all sparsened quark propagators on the cl3_32_48_b6p1_m0p2450 \
+ensemble (Nf=3 stout-clover, 32^3 x 48, beta = 6.1, m = -0.2450), from \
+every source position of an 8^3 sparse grid (sparsening factor 4), in three \
+generations: a 2021 set on the main stream at source timeslice 1 with all \
+four combinations of width-2.1 and width-4.7 gauge-invariant Gaussian \
+source/sink smearing (htar archives of 2048 propagators per configuration); \
+2024-2025 sets on streams b and c at source timeslice 0 with width-2.1 \
+smearing (one tar per configuration); and a 2020 HDF5 set on streams b and c \
+at source timeslice 0. Input to the NPLQCD H-dibaryon correlators. Each \
+archive or file is one catalog record with lqcd.parent.* naming its \
+configuration and lqcd.prop.* saying which generation it belongs to."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+sparse_grid = "8^3"
+sparsening_factor = 4
+n_sources_per_timeslice = 512
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+quark_mass = -0.2450
+
+# --- main stream, 2021, t=1, four smearing combinations
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "cl3_32_48_b6p1_m0p2450_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.tsrc" = 1, "lqcd.prop.generation" = "2021-tacc", "lqcd.prop.smearing_widths" = [2.1, 4.7], "lqcd.prop.smearing_combinations" = ["uS2.1_S2.1", "uS2.1_S4.7", "uS4.7_S2.1", "uS4.7_S4.7"], "lqcd.prop.smearing_steps" = "20 for width 2.1; unrecorded for width 4.7", "lqcd.prop.members_per_archive" = 2048, "lqcd.prop.file_format" = "NPLQCD sprop binary, one file per source position and smearing combination", "lqcd.prop.member_name_template" = "{trajectory}/sprop_x{x}y{y}z{z}t1_uS{w_src}_S{w_snk}.prop" }
+description = "Archive (htar where an .idx exists) of timeslice-to-all sparse propagators for one configuration at source timeslice 1: 512 source positions times four source/sink smearing combinations of widths 2.1 and 4.7."
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "cl3_32_48_b6p1_m0p2450_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."
+
+# --- streams b and c, 2024-2025, t=0, width 2.1
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.generation" = "2024-2025", "lqcd.prop.smearing_width" = 2.1, "lqcd.prop.smearing_steps" = 20, "lqcd.prop.file_format" = "NPLQCD sprop binary, one file per source position", "lqcd.prop.member_name_template" = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS2.1_S2.1.prop" }
+description = "Tar archive of timeslice-to-all sparse propagators for one configuration at source timeslice 0: 512 sprop files, width-2.1 smearing."
+
+# --- streams b and c, 2020, HDF5
+[[files]]
+pattern = '^sparseprops/cl3_32_48_b6p1_m0p2450_(?P<trajectory>\d+)_src_t(?P<tsrc>\d+)\.h5$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-hdf5"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+meta = { "lqcd.prop.generation" = "2020-hdf5", "lqcd.prop.file_format" = "HDF5, all source positions of one timeslice in one file", "lqcd.prop.smearing_width" = "unrecorded" }
+description = "HDF5 file of timeslice-to-all sparse propagators for one configuration and source timeslice (2020 production)."

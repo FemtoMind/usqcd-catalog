@@ -1,0 +1,57 @@
+# Derived dataset: 2021 timeslice-to-all sparse propagators on the legacy
+# stream of cl3_24_48_b6p1_m0p2450
+#
+# HPSS layout (clover-iso/cl3_24_48_b6p1_m0p2450/sparseprops/): <TRAJ>.tar, 1911
+# plain tar archives of 20.7 GB (July 2021, owner wdetmold), members
+# <TRAJ>/sprop_x<X>y<Y>z<Z>t1_uS<w_src>_S<w_snk>.prop with widths 2.1 and 4.7
+# (peeked: 1000.tar), 23.9 MB each: 6^3 = 216 source positions x 4 smearing
+# combinations = 864 per archive. Dated 2021, so these belong to the original
+# single stream of this ensemble (whose configurations are not on HPSS), not to
+# streams a-p generated in 2024; the trajectory numbers refer to that stream.
+
+[ensemble]
+name = "cl3_24_48_b6p1_m0p2450_sparseprops_legacy"
+parent = "cl3_24_48_b6p1_m0p2450"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 24^3x48 beta=6.1 sparse propagators (timeslice-to-all, legacy stream, 2021)"
+generated_by = "NPLQCD (W. Detmold, 2021)"
+code = "Chroma + QUDA"
+description = """\
+Timeslice-to-all sparsened quark propagators from 2021 on the original \
+(pre-2024) stream of the cl3_24_48_b6p1_m0p2450 ensemble (Nf=3 stout-clover, \
+24^3 x 48, beta = 6.1, m = -0.2450): one tar archive per configuration at \
+source timeslice 1, holding the propagators from all 216 positions of a 6^3 \
+sparse grid (sparsening factor 4) for all four combinations of width-2.1 and \
+width-4.7 gauge-invariant Gaussian source/sink smearing. The configurations \
+of this stream are not archived on NERSC HPSS. Each archive is one catalog \
+record with lqcd.parent.* naming the configuration by stream and trajectory."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+generation = "2021"
+file_format = "NPLQCD sprop binary, one file per source position and smearing combination"
+sparse_grid = "6^3"
+sparsening_factor = 4
+n_sources_per_timeslice = 216
+source_timeslices = [1]
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_widths = [2.1, 4.7]
+smearing_combinations = ["uS2.1_S2.1", "uS2.1_S4.7", "uS4.7_S2.1", "uS4.7_S4.7"]
+smearing_steps = "20 for width 2.1; unrecorded for width 4.7"
+members_per_archive = 864
+quark_mass = -0.2450
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t1_uS{w_src}_S{w_snk}.prop"
+
+[streams.legacy]
+dir = "cl3_24_48_b6p1_m0p2450"
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+meta = { "lqcd.prop.tsrc" = 1 }
+description = "Tar archive of timeslice-to-all sparse propagators for one configuration of the legacy stream at source timeslice 1: 216 source positions times four smearing combinations."

@@ -1,0 +1,76 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl3_48_64_b6p3_m0p2050 (stream b)
+#
+# HPSS layout (clover-iso/cl3_48_64_b6p3_m0p2050_b/):
+#   sparseprops/<TRAJ>.tar            source timeslice 0 (2023; the run XML in xml/<TRAJ>.tar
+#                                     names *_x..y..z..t0_S4.0_S4.0.xml)
+#   sparseprops-t{16,32,48}/<TRAJ>.tar  source timeslices 16, 32, 48
+#   xml/<TRAJ>.tar, xml-t{16,32,48}/<TRAJ>.tar   Chroma XML of every solve
+# All plain tar, 38.7 GB each. 8^3 sparse grid (sparsening 6), width 4.0 with 100
+# steps (H-dibaryon row E setup; width 4.0 = 100 steps verified on the 36^3 x 64
+# and 30^3 x 60 runs; this run's own xml/ archives can be checked the same way).
+# The configurations of this stream are not archived on NERSC HPSS.
+
+[ensemble]
+name = "cl3_48_64_b6p3_m0p2050_sparseprops"
+parent = "cl3_48_64_b6p3_m0p2050"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 48^3x64 beta=6.3 m=-0.2050 sparse propagators (timeslice-to-all)"
+generated_by = "NPLQCD (W. Detmold, 2023-2024)"
+code = "Chroma + QUDA"
+description = """\
+Timeslice-to-all sparsened quark propagators on stream b of the \
+cl3_48_64_b6p3_m0p2050 ensemble (Nf=3 stout-clover, 48^3 x 64, beta = 6.3, \
+m = -0.2050): one tar archive per gauge configuration and source timeslice \
+(t = 0, 16, 32, 48), each holding the propagators from every source position \
+on an 8^3 sparse grid (sparsening factor 6) with gauge-invariant Gaussian \
+source and sink smearing of width 4.0 and 100 steps. The Chroma XML of every \
+solve is archived alongside. The configurations themselves are not on NERSC \
+HPSS. Input to the NPLQCD H-dibaryon correlators. Each archive is one catalog \
+record with lqcd.parent.* naming its configuration by stream and trajectory."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+file_format = "NPLQCD sprop binary, one file per source position"
+sparse_grid = "8^3"
+sparsening_factor = 6
+n_sources_per_timeslice = 512
+source_timeslices = [0, 16, 32, 48]
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 4.0
+smearing_steps = 100
+smearing_steps_source = "width 4.0 = 100 steps verified on cl3_36_64_b6p3_m0p2050 and cl3_30_60_b6p2_m0p2250 runs; this run's xml/ archives not yet read"
+quark_mass = -0.2050
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS4.0_S4.0.prop"
+
+[streams.b]
+dir = "cl3_48_64_b6p3_m0p2050_b"
+
+[[files]]
+pattern = '^sparseprops/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+meta = { "lqcd.prop.tsrc" = 0 }
+description = "Tar archive of timeslice-to-all sparse propagators for one configuration at source timeslice 0: 512 sprop files, one per source position on the 8^3 grid."
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+description = "Tar archive of timeslice-to-all sparse propagators for one configuration and one source timeslice: 512 sprop files, one per source position on the 8^3 grid."
+
+[[files]]
+pattern = '^xml/(?P<trajectory>\d+)\.tar$'
+kind = "propagator_run_xml_archive"
+format = "application/x-tar"
+meta = { "lqcd.prop.tsrc" = 0 }
+description = "Tarball of the Chroma input/output XML for every propagator solve on this configuration at source timeslice 0."
+
+[[files]]
+pattern = '^xml-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "propagator_run_xml_archive"
+format = "application/x-tar"
+description = "Tarball of the Chroma input/output XML for every propagator solve on this configuration and source timeslice."

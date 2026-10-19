@@ -81,6 +81,16 @@ code_version = "chroma 3.40.0 + quda (install_jan_2024)"
 
 # Sixteen streams under the shared parent directory. "dir" is relative to the
 # storage root and may contain a slash.
+#
+# Plus the original single stream from the 2012 era, whose directory
+# clover-iso/cl3_24_48_b6p1_m0p2450 holds no configurations (not archived on
+# HPSS) but does hold 2021 sparse propagators (sparseprops/<TRAJ>.tar, dated
+# July 2021, so they cannot belong to streams a-p generated in 2024) and
+# correlators. Listed so derived datasets can point at it.
+[streams.legacy]
+dir = "cl3_24_48_b6p1_m0p2450"
+note = "Original pre-2024 stream; configurations not on NERSC HPSS; derived data only."
+
 [streams.a]
 dir = "cl3_24_48_b6p1_m0p2450_ensembles/cl3_24_48_b6p1_m0p2450_a"
 [streams.b]

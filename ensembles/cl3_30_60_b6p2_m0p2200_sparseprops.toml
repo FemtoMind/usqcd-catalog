@@ -1,0 +1,69 @@
+# Derived dataset: timeslice-to-all sparse propagators on cl3_30_60_b6p2_m0p2200
+#
+# HPSS layout (clover-iso/cl3_30_60_b6p2_m0p2200/):
+#   sparseprops-t{0,30}/<TRAJ>.tar (+ .idx, htar)   one archive per configuration and source timeslice
+#   xml-t{0,30}/<TRAJ>.tar                          Chroma XML of every solve (plain tar)
+# Members: <TRAJ>/sprop_x<X>y<Y>z<Z>t<T>_uS4.0_S4.0.prop, 216 per archive (6^3 grid, sparsening 5).
+# Same production setup as the m = -0.2250 partner (verified there: width 4.0,
+# 100 steps, QUDA reliable IBiCGStab MP to 1e-12); this ensemble's own xml-t*
+# archives are on HPSS and can be checked the same way.
+
+[ensemble]
+name = "cl3_30_60_b6p2_m0p2200_sparseprops"
+parent = "cl3_30_60_b6p2_m0p2200"
+kind = "sparse_propagator_set"
+name_style = "path"
+display_name = "cl3 30^3x60 beta=6.2 m=-0.2200 sparse propagators (timeslice-to-all)"
+generated_by = "NPLQCD (W. Detmold)"
+code = "Chroma 3.44.x + QUDA"
+description = """\
+Timeslice-to-all sparsened quark propagators on the cl3_30_60_b6p2_m0p2200 \
+ensemble (Nf=3 stout-clover, 30^3 x 60, beta = 6.2, m = -0.2200): one htar \
+archive per gauge configuration and source timeslice (t = 0, 30), each \
+holding the propagators from every source position on a 6^3 sparse grid \
+(sparsening factor 5) with gauge-invariant Gaussian source and sink smearing \
+of width 4.0 and 100 steps, solved with the QUDA reliable IBiCGStab \
+multi-precision clover inverter to 1e-12. The Chroma XML of every solve is \
+archived alongside. Input to the NPLQCD H-dibaryon correlators. Each archive \
+is one catalog record with lqcd.parent.* naming its configuration."""
+
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+file_format = "NPLQCD sprop binary, one file per source position"
+sparse_grid = "6^3"
+sparsening_factor = 5
+n_sources_per_timeslice = 216
+source_timeslices = [0, 30]
+source_type = "SHELL_SOURCE"
+sink_type = "SHELL_SINK"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 4.0
+smearing_steps = 100
+smearing_steps_source = "same production setup as cl3_30_60_b6p2_m0p2250 (verified there from xml-t30/1000.tar)"
+link_smearing = "none"
+solver = "RELIABLE_IBICGSTAB_MP_CLOVER_INVERTER"
+solver_rsd_target = 1e-12
+quark_mass = -0.2200
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS4.0_S4.0.prop"
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "cl3_30_60_b6p2_m0p2200_cfg_{trajectory}.lime"
+description = "htar archive of timeslice-to-all sparse propagators for one configuration and one source timeslice: 216 sprop files, one per source position on the 6^3 grid."
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "cl3_30_60_b6p2_m0p2200_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."
+
+[[files]]
+pattern = '^xml-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "propagator_run_xml_archive"
+format = "application/x-tar"
+parent_name = "cl3_30_60_b6p2_m0p2200_cfg_{trajectory}.lime"
+description = "Tarball of the Chroma input/output XML for every propagator solve on this configuration and source timeslice."
