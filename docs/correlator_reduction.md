@@ -57,8 +57,10 @@ python3 scripts/htar_members.py --archives /home/w/wdetmold/clover-iso/cl21_48_9
 for S in cl21_48_96_b6p3_m0p2416_m0p2050{,-1000,-1200,-2420,-djm-1,-djm-2,-djm-3,-djm-4}; do
   sbatch bin/reduce_corrs_xfer.sh work/cl21_nucleon/members.json $S \
       $SCRATCH/correlators/cl21_nucleon/stage \
-      $SCRATCH/correlators/cl21_nucleon/$S.h5 B0_A1m_p0_f B1_G1g_p0_f
+      $SCRATCH/correlators/cl21_nucleon/$S.h5 \
+      B0_A1u_p0_f B1_G1g_p0_f B2_G1g_G1g_p0_f --by-tsrc B0_A1u_p0_f B1_G1g_p0_f
 done
+# (extra arguments after the dataset names go straight to reduce_corrs.py)
 
 # 3. merge (any time; re-run when more trajectories have landed)
 module load python
@@ -67,9 +69,22 @@ python3 scripts/merge_corrs.py --out $SCRATCH/correlators/cl21_nucleon/cl21_48_9
 ```
 
 Output layout: `/<stream>/trajectories`, `/<stream>/tsrc`,
-`/<stream>/B0_A1m_p0_f` (nTRAJ, ...), `/<stream>/B1_G1g_p0_f`,
-`/<stream>/by_tsrc/<dataset>` (nTRAJ, 96, ...), plus provenance attributes
-(archive path, member pattern, datasets, dates).
+`/<stream>/<dataset>` (nTRAJ, ...) averaged over the 96 sources, and
+`/<stream>/by_tsrc/<dataset>` (nTRAJ, 96, ...) for the datasets named with
+`--by-tsrc`, plus provenance attributes (archive path, member pattern,
+datasets, dates). The datasets in these files (`all-corrs-<traj>-<tsrc>.h5`,
+complex128) are
+
+| dataset | shape per source | per configuration, source-averaged |
+|---|---|---|
+| `B0_A1u_p0_f` (pion, 5 x 5 momenta) | (1, 5, 1, 5, 96) | 38 KB |
+| `B1_G1g_p0_f` (nucleon, 2 x 2 spin x 5 x 5 momenta) | (2, 5, 2, 5, 96) | 154 KB |
+| `B2_G1g_G1g_p0_f` (NN, 4 x 172 operators squared, 48 t) | (4, 172, 4, 172, 48) | 364 MB |
+
+so the full 1032-configuration NN set is ~375 GB per-configuration (no
+binning), while keeping the per-source NN arrays would be 96 times that.
+Binning over configurations is left to the analysis (merge step), where it
+is cheap and reversible.
 
 Throughput is set by tape: all eight archives are 32.7 TB and HPSS stages
 them one file at a time per tape drive, so expect the full set to take a

@@ -11,9 +11,12 @@ trajectory at a time, and accumulate a per-stream database.
 For each trajectory in the members manifest (from htar_members.py):
   1. extract that trajectory's member files (all sources) from the HPSS htar
      archive into <stage-dir>/<stream>/ with bin/htar_extract.sh,
-  2. open each file, read the requested datasets, stack over sources,
-  3. append to the output HDF5: the source-averaged correlator and the
-     per-source array, checkpointed per trajectory,
+  2. open each file, read the requested datasets, average over sources
+     (a running sum, so memory stays at a few files' worth even for the
+     364 MB NN datasets),
+  3. append to the output HDF5: the source-averaged correlator, plus the
+     per-source array for datasets named with --by-tsrc, checkpointed per
+     trajectory,
   4. delete the staged files.
 Resumable: trajectories already in the output are skipped, so the same
 command can be re-submitted after a wall-clock limit or an HPSS hiccup.
@@ -22,7 +25,7 @@ Output layout (one file per stream):
   /trajectories          int   (nTRAJ,)
   /tsrc                  int   (nSRC,)
   /<dataset>             (nTRAJ, ...)        mean over sources
-  /by_tsrc/<dataset>     (nTRAJ, nSRC, ...)  everything, for your own averaging
+  /by_tsrc/<dataset>     (nTRAJ, nSRC, ...)  only for --by-tsrc datasets (nSRC times larger)
   attrs: archive, pattern, stream, datasets, n_tsrc, created, reduce_corrs version
 
 Needs h5py + numpy (NERSC: `module load python`). HPSS access means this must
@@ -78,8 +81,10 @@ def done_trajectories(out: Path) -> set[int]:
         return set(int(t) for t in f["trajectories"][()]) if "trajectories" in f else set()
 
 
-def append(out: Path, traj: int, tsrc: list[int], data: dict[str, np.ndarray], meta: dict) -> None:
-    """data[name] has shape (nSRC, ...). Create resizable datasets on first use."""
+def append(out: Path, traj: int, tsrc: list[int], means: dict[str, np.ndarray],
+           by_src: dict[str, np.ndarray], meta: dict) -> None:
+    """means[name] is the source average; by_src[name] (nSRC, ...) only for --by-tsrc datasets.
+    Resizable datasets are created on first use."""
     with h5py.File(out, "a") as f:
         if "trajectories" not in f:
             f.create_dataset("trajectories", shape=(0,), maxshape=(None,), dtype="i8")
@@ -90,17 +95,19 @@ def append(out: Path, traj: int, tsrc: list[int], data: dict[str, np.ndarray], m
         elif not np.array_equal(f["tsrc"][()], np.asarray(tsrc)):
             raise RuntimeError(f"trajectory {traj}: source list {tsrc} differs from the file's {f['tsrc'][()].tolist()}")
         n = f["trajectories"].shape[0]
-        for name, arr in data.items():
-            mean = arr.mean(axis=0)
+        for name, mean in means.items():
             if name not in f:
                 f.create_dataset(name, shape=(0,) + mean.shape, maxshape=(None,) + mean.shape, dtype=mean.dtype,
                                  chunks=(1,) + mean.shape)
-                f.create_dataset(f"by_tsrc/{name}", shape=(0,) + arr.shape, maxshape=(None,) + arr.shape,
-                                 dtype=arr.dtype, chunks=(1,) + arr.shape)
             f[name].resize(n + 1, axis=0)
             f[name][n] = mean
-            f[f"by_tsrc/{name}"].resize(n + 1, axis=0)
-            f[f"by_tsrc/{name}"][n] = arr
+        for name, arr in by_src.items():
+            key = f"by_tsrc/{name}"
+            if key not in f:
+                f.create_dataset(key, shape=(0,) + arr.shape, maxshape=(None,) + arr.shape,
+                                 dtype=arr.dtype, chunks=(1,) + arr.shape)
+            f[key].resize(n + 1, axis=0)
+            f[key][n] = arr
         f["trajectories"].resize(n + 1, axis=0)
         f["trajectories"][n] = traj
         f.flush()
@@ -111,6 +118,9 @@ def main() -> int:
     ap.add_argument("members_json")
     ap.add_argument("--stream", required=True, help="stream name as in the members manifest")
     ap.add_argument("--datasets", nargs="+", required=True)
+    ap.add_argument("--by-tsrc", nargs="*", default=[], metavar="DATASET",
+                    help="also keep the per-source array for these datasets (nSRC times the storage; "
+                         "fine for the KB-sized pion/nucleon, not for the 364 MB NN blocks)")
     ap.add_argument("--stage-dir", required=True)
     ap.add_argument("--out", required=True, help="per-stream output HDF5")
     ap.add_argument("--trajectory-min", type=int)
@@ -160,8 +170,13 @@ def main() -> int:
             return 2
         log(f"archive on disk after {(time.time() - t0) / 60:.0f} min")
 
+    keep_src = set(args.by_tsrc)
+    unknown = keep_src - set(args.datasets)
+    if unknown:
+        sys.exit(f"--by-tsrc names not in --datasets: {sorted(unknown)}")
     meta = {"archive": arc, "pattern": members["pattern"], "stream": args.stream,
-            "datasets": json.dumps(args.datasets), "reduce_corrs_version": VERSION}
+            "datasets": json.dumps(args.datasets), "by_tsrc": json.dumps(sorted(keep_src)),
+            "reduce_corrs_version": VERSION}
     for i, t in enumerate(todo, 1):
         tinfo = info["trajectories"][str(t)]
         mem = tinfo["members"]
@@ -186,17 +201,26 @@ def main() -> int:
             log(f"traj {t}: {len(missing)} members not extracted, e.g. {missing[0]}")
             return 2
         t1 = time.time()
+        # Running sum over sources as the files arrive (in order), so memory is
+        # bounded by the reader count, not by nSRC copies of each dataset.
+        sums: dict[str, np.ndarray] = {}
+        src_arrays: dict[str, list[np.ndarray]] = {d: [] for d in keep_src}
         with ThreadPoolExecutor(max_workers=args.jobs) as ex:
-            per_src = list(ex.map(lambda p: read_one(p, args.datasets), paths))
-        data = {d: np.stack([s[d] for s in per_src]) for d in args.datasets}
+            for one in ex.map(lambda p: read_one(p, args.datasets), paths):
+                for d, a in one.items():
+                    sums[d] = a.astype(a.dtype, copy=True) if d not in sums else sums[d] + a
+                    if d in keep_src:
+                        src_arrays[d].append(a)
+        means = {d: sums[d] / len(paths) for d in args.datasets}
+        by_src = {d: np.stack(v) for d, v in src_arrays.items()}
+        shapes = {d: (len(paths),) + means[d].shape for d in args.datasets}
         tsrc = [m.get("tsrc", k) for k, m in enumerate(mem)]
         meta["n_tsrc"] = len(tsrc)
-        append(out, t, tsrc, data, meta)
+        append(out, t, tsrc, means, by_src, meta)
         if not args.keep_staged:
             for p in paths:
                 os.remove(p)
             listfile.unlink()
-        shapes = {d: list(v.shape) for d, v in data.items()}
         log(f"traj {t} ({i}/{len(todo)}): extract {t1 - t0:.0f}s, reduce {time.time() - t1:.0f}s, "
             f"{len(mem)} sources, shapes {shapes}")
     # clean empty staged tree
