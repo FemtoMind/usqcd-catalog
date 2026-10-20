@@ -307,6 +307,14 @@ def main() -> int:
                 groups = dict(groups, **{k: str(v) for k, v in idx.items() if v is not None and k != "prop"})
                 if idx.get("prop"):   # sprop_members.py: what the archive's member names say
                     f = dict(f, _prop_index=idx["prop"])
+            # A range-named archive with no index still has a known member count
+            # when the ensemble states how often configurations were saved
+            # ([ensemble] trajectory_spacing): (max - min) / spacing + 1.
+            spacing = ens["ensemble"].get("trajectory_spacing")
+            if (spacing and rule["kind"] == "gauge_config_archive" and "n_members" not in groups
+                    and "trajectory_min" in groups and "trajectory_max" in groups):
+                n = (int(groups["trajectory_max"]) - int(groups["trajectory_min"])) // int(spacing) + 1
+                groups = dict(groups, n_members=str(n))
             label = groups.get("stream", dir_label)
             classified.append((label, dir_label, f, rule, groups))
             s = per_stream.setdefault(label, {"n_configs": 0, "n_config_archives": 0, "n_files": 0,

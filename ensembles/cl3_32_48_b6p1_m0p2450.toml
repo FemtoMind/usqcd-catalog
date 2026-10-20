@@ -20,6 +20,10 @@
 [ensemble]
 name = "cl3_32_48_b6p1_m0p2450"
 display_name = "cl3 32^3x48 beta=6.1 m=-0.2450"
+# Configurations were saved every 10 trajectories, so each range archive
+# holds (max - min)/10 + 1 of them (lqcd.n_configs_in_archive) and the
+# dataset's lqcd.n_configs is their sum. The archives have no index.
+trajectory_spacing = 10
 collaboration = "NPLQCD"
 generated_by = "W. Detmold (NERSC user wdetmold)"
 code = "Chroma hmc (3.40.0 era)"

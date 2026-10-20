@@ -238,7 +238,7 @@ propagator datasets).
 | `cl3_24_48_b6p1_m0p2450` | 3 | 16 | 16218 |
 | `cl3_30_60_b6p2_m0p2200` | 3 | 1 | 685 |
 | `cl3_30_60_b6p2_m0p2250` | 3 | 1 | 662 |
-| `cl3_32_48_b6p1_m0p2450` | 3 | 3 | 16 archives |
+| `cl3_32_48_b6p1_m0p2450` | 3 | 3 | 12735 |
 | `cl3_32_64_b6p5_m0p1788` | 3 | 4 | 1242 |
 | `cl3_36_64_b6p3_m0p2050` | 3 | 1 | 735 |
 | `cl3_36_64_b6p3_m0p2170` | 3 | 1 | 520 |
@@ -246,7 +246,7 @@ propagator datasets).
 | `cl3_48_64_b6p3_m0p2050` | 3 | 0 | 0 |
 | `cl3_48_96_b6p5_m0p1788` | 3 | 1 | 816 |
 
-17 ensembles, 67462 configurations, 18 derived datasets (76891 records), namespace `lqcd`, 2026-10-20.
+17 ensembles, 80197 configurations, 18 derived datasets (76891 records), namespace `lqcd`, 2026-10-20.
 
 The cl3 datasets carry the H-dibaryon analysis observables (t0, w0, pion
 and nucleon masses, lattice spacing). Not yet catalogued: correlators, and

@@ -139,7 +139,7 @@ convention of the earlier NPLQCD eigenvector demo where one existed.
 | `AmSC.common.display_name` | `"<ensemble> <stream> <kind> <trajectory>"` |
 | `AmSC.common.location` | `globus://<storage collection uuid><absolute path>` |
 | `AmSC.artifact.format` | `application/x-lime`, `application/xml`, `application/x-tar` |
-| `lqcd.artifact.kind` | `gauge_config` (one LIME file) \| `gauge_config_archive` (a tar/htar of many configs, carries `lqcd.trajectory_min`/`_max` and, from an htar index, `lqcd.n_configs_in_archive`) \| `archive_index` (an htar `.idx`) \| `hmc_input` \| `hmc_input_archive` \| `hmc_log_archive` \| `hmc_measurement_archive` |
+| `lqcd.artifact.kind` | `gauge_config` (one LIME file) \| `gauge_config_archive` (a tar/htar of many configs, carries `lqcd.trajectory_min`/`_max` and `lqcd.n_configs_in_archive`, from an htar index or, for range-named plain tars, from `[ensemble] trajectory_spacing` as (max - min)/spacing + 1) \| `archive_index` (an htar `.idx`) \| `hmc_input` \| `hmc_input_archive` \| `hmc_log_archive` \| `hmc_measurement_archive` |
 | `lqcd.ensemble` | ensemble name |
 | `lqcd.stream` | stream label from the TOML (`main`, `a`, ...), or from a `(?P<stream>...)` group in the file rule when several streams share one directory |
 | `lqcd.stream_dir` | storage directory name of the stream |
