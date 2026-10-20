@@ -216,7 +216,7 @@ docs/browsing.md        looking at records from a browser (REST URLs, dCache lis
 work/                   generated per-ensemble JSON (gitignored)
 ```
 
-## What is in the catalog
+## USQCD Ensembles
 
 One dataset per ensemble (`lqcd:<ensemble>`) holding every stream's
 configurations, plus one dataset per derived product
