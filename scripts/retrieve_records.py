@@ -8,8 +8,8 @@ Step 4: pull an ensemble's records back out of MetaCat, and check the round trip
     retrieve_records.py cl3_32_64_b6p5_m0p1788 --diff work/cl3_32_64_b6p5_m0p1788/records.json
     retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --paths   # one HPSS path per line
     retrieve_records.py --list-ensembles                                      # what ensembles exist
-    retrieve_records.py --summary                                             # the same as a Markdown table,
-                                                                              # with each ensemble's derived datasets
+    retrieve_records.py --summary [--derived]                                 # Markdown table: Nf, streams, configs
+                                                                              # (--derived: the propagator sets too)
     retrieve_records.py --kind gauge_config --beta 6.5 --kappa 0.130849       # discovery across ensembles;
                                                                               # --mass or --kappa both match
                                                                               # records stored either way
@@ -122,10 +122,11 @@ def list_ensembles(client, ns: str) -> list[dict]:
     return out
 
 
-def summary_table(client, ns: str) -> str:
-    """Markdown table of every ensemble in the namespace, alphabetical, with its
-    configuration count across streams and the derived datasets that point at
-    it (lqcd.parent.ensemble). This is what the README's catalog summary is
+def summary_table(client, ns: str, with_derived: bool = False) -> str:
+    """Markdown table of every ensemble in the namespace, alphabetical: Nf,
+    number of streams, configurations across streams. With with_derived, a
+    second table of the derived datasets that point at each ensemble
+    (lqcd.parent.ensemble). This is what the README's catalog summary is
     generated from."""
     gauge: dict[str, dict] = {}
     derived: dict[str, list[tuple[str, str, int]]] = {}
@@ -141,27 +142,30 @@ def summary_table(client, ns: str) -> str:
             parent = md["lqcd.parent.ensemble"]
             suffix = d["name"][len(parent) + 1:] if d["name"].startswith(parent + "_") else d["name"]
             derived.setdefault(parent, []).append((suffix, kind or "", n_files))
-    lines = ["| ensemble | Nf | volume | beta | streams | configs | derived datasets (records) |",
-             "|---|---|---|---|---|---|---|"]
+    lines = ["| ensemble | Nf | streams | configs |", "|---|---|---|---|"]
     total_cfgs = 0
     for name in sorted(gauge):
         md = gauge[name]["md"]
-        vol = md.get("lqcd.volume") or []
-        vol_s = "x".join(str(v) for v in vol) if vol else ""
         n_cfg = md.get("lqcd.n_configs") or 0
         total_cfgs += n_cfg
         streams = md.get("lqcd.streams") or []
         flav = md.get("lqcd.flavor_structure") or ""
         nf = "2+1" if flav.startswith("2+1") else str(md.get("lqcd.nflavors") or "")
-        prods = ", ".join(f"`{s}` ({n})" for s, _, n in sorted(derived.get(name, [])))
         n_arch = md.get("lqcd.n_config_archives") or 0
         # Multi-configuration tar archives without an index carry a trajectory
-        # range but no member count, so say how many archives instead.
-        cfg_cell = str(n_cfg) if n_cfg else (f"{n_arch} multi-config archives" if n_arch else "none on HPSS")
-        lines.append(f"| `{name}` | {nf} | {vol_s} | {md.get('lqcd.beta', '')} | {len(streams)} | {cfg_cell} | {prods} |")
-    lines.append(f"\n{len(gauge)} ensembles, {total_cfgs} configurations, "
-                 f"{sum(len(v) for v in derived.values())} derived datasets "
-                 f"({sum(n for v in derived.values() for _, _, n in v)} records), namespace `{ns}`, {utcnow()[:10]}.")
+        # range but no member count, so say how many archives instead; 0 means
+        # the configurations have no catalogued location yet.
+        cfg_cell = str(n_cfg) if n_cfg else (f"{n_arch} archives" if n_arch else "0")
+        lines.append(f"| `{name}` | {nf} | {len(streams)} | {cfg_cell} |")
+    n_derived = sum(len(v) for v in derived.values())
+    n_records = sum(n for v in derived.values() for _, _, n in v)
+    lines.append(f"\n{len(gauge)} ensembles, {total_cfgs} configurations, {n_derived} derived datasets "
+                 f"({n_records} records), namespace `{ns}`, {utcnow()[:10]}.")
+    if with_derived:
+        lines += ["", "| derived dataset | kind | records |", "|---|---|---|"]
+        for parent in sorted(derived):
+            for suffix, kind, n in sorted(derived[parent]):
+                lines.append(f"| `{parent}_{suffix}` | {kind} | {n} |")
     return "\n".join(lines)
 
 
@@ -204,7 +208,8 @@ def main() -> int:
     ap.add_argument("--config", help="site config (default: catalog.toml in repo root)")
     ap.add_argument("--list-ensembles", action="store_true", help="print the ensembles in the catalog and exit")
     ap.add_argument("--summary", action="store_true",
-                    help="print a Markdown table of the ensembles with configuration counts and derived datasets (for the README) and exit")
+                    help="print a Markdown table of the ensembles (Nf, streams, configurations; the README's table) and exit")
+    ap.add_argument("--derived", action="store_true", help="with --summary: also list the derived datasets per ensemble")
     ap.add_argument("--kind", help="lqcd.artifact.kind filter (gauge_config, hmc_input, hmc_log_archive)")
     ap.add_argument("--stream", help="lqcd.stream filter (main, a, b, ...)")
     ap.add_argument("--trajectory", type=int)
@@ -227,7 +232,7 @@ def main() -> int:
     client = metacat_client(cfg, need_auth=False)
 
     if args.summary:
-        print(summary_table(client, ns))
+        print(summary_table(client, ns, with_derived=args.derived))
         return 0
     if args.list_ensembles:
         rows = list_ensembles(client, ns)

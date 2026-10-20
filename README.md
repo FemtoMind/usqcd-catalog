@@ -2,21 +2,23 @@
 
 Scripts for cataloging and discovering USQCD lattice-QCD data — gauge-field ensembles and reusable building blocks for quark propagators —  in the AmSC Fermi Data Platform MetaCat catalog.
 
-The pipeline is four small Python scripts with JSON between them, so every
-step can be inspected and re-run on its own:
+Discovery is one script and needs no account (`retrieve_records.py`, below).
+Cataloging is a hand-written description of the ensemble, an inventory of
+its files, and three small scripts with JSON between them, so every step
+can be inspected and re-run on its own:
 
 ```
 ensembles/<name>.toml  (hand-written: physics, streams, file rules)
         │
         ▼
-1. scripts/hpss_inventory.py   hsi ls -lR  ──►  work/<name>/inventory.json
-2. scripts/build_records.py    TOML + inventory ──►  work/<name>/records.json
-3. scripts/declare_records.py  records.json ──► MetaCat   (the only write step)
-4. scripts/retrieve_records.py MetaCat ──► work/<name>/catalog_dump.json, --diff records.json
+1. an inventory of the files     ──►  work/<name>/inventory.json   (NERSC HPSS: scripts/hpss_inventory.py)
+2. scripts/build_records.py      TOML + inventory ──►  work/<name>/records.json
+3. scripts/declare_records.py    records.json ──► MetaCat   (the only write step)
+4. scripts/retrieve_records.py   MetaCat ──► discovery, and --diff records.json for the round trip
 ```
 
-Site-specific values (catalog URL, namespace, storage Globus UUID, HPSS root)
-live in `catalog.toml`. Ensemble-specific values live in
+Site-specific values (catalog URL, namespace, storage Globus UUIDs, archive
+roots) live in `catalog.toml`. Ensemble-specific values live in
 `ensembles/<name>.toml`. Nothing in `scripts/` hard-codes either.
 
 ## Where to see the LQCD metadata
@@ -77,7 +79,7 @@ No venv is required:
 ```
 module load python          # NERSC: the OS python3 is 3.6; this one is 3.13
 pip install --user -e .     # metacat-client (+ tomli on python < 3.11)
-python3 scripts/hpss_inventory.py ensembles/cl3_32_64_b6p5_m0p1788.toml
+python3 scripts/retrieve_records.py --summary   # anonymous; prints the table at the end of this page
 ```
 
 A venv works the same way if you prefer isolation
@@ -119,55 +121,72 @@ Groups without an FNAL account can still use the first two steps: build
 `records.json` from their own inventory and TOML, then hand that file to
 someone with write access to run `declare_records.py`.
 
-## Running it for one ensemble
+## Data discovery
+
+Reads are anonymous; nothing in this section needs an account.
 
 ```
-module load python          # or activate the venv you installed into
-python3 scripts/hpss_inventory.py  ensembles/cl3_32_64_b6p5_m0p1788.toml   # hsi ls -lR  -> work/<ens>/inventory.json
-python3 scripts/build_records.py   ensembles/cl3_32_64_b6p5_m0p1788.toml   # offline     -> work/<ens>/records.json
-python3 scripts/declare_records.py work/cl3_32_64_b6p5_m0p1788/records.json # the only write to MetaCat
-python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --diff work/cl3_32_64_b6p5_m0p1788/records.json
+python3 scripts/retrieve_records.py --summary              # every ensemble: Nf, streams, configurations (the table below)
+python3 scripts/retrieve_records.py --summary --derived    # plus the propagator datasets that point at each one
+python3 scripts/retrieve_records.py --list-ensembles       # one line per ensemble with beta, volume, masses, a, m_pi
+python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --stream a --trajectory-min 1000 --paths
+python3 scripts/retrieve_records.py --kind gauge_config --beta 6.5 --kappa 0.1308   # across ensembles
 ```
 
-The inventory takes minutes per TB of metadata and needs HPSS access; the
-build is instant and offline, so `records.json` can be reviewed (and sent
-to someone with write access) before anything is declared. `declare_records.py`
-is idempotent: it looks up what is already in the namespace and only
-declares the rest, so a failed batch is just re-run. Its options:
-
-* `--dry-run` runs the local checks (names, collisions, required fields) and,
-  once the dataset exists, the server's validation, without writing.
-* `--limit N` creates the dataset and declares only the first N records; a
-  good first push, followed by `--diff`, before declaring tens of thousands.
-* `--update-existing` pushes new metadata from an edited TOML onto records
-  that are already there (merge, never replace, so FNAL-stamped fields
-  survive); `--dataset-only` restricts that to the dataset record.
-
-`retrieve_records.py --diff` is the round-trip test: it exits 0 only when
-every intended record is in the catalog with the intended size and metadata,
-and lists what is missing, extra or different otherwise.
+Filters: `--kind` (`gauge_config`, `sparse_propagator_timeslice_to_all`,
+`sparse_propagator_all_to_all`, `hmc_input`, ...), `--stream`,
+`--trajectory` / `--trajectory-min` / `--trajectory-max`, `--beta`, and
+`--mass` or `--kappa` (either matches records stored the other way; `--flavor`
+and `--tol` adjust them). Every hit is a self-describing record: the
+ensemble's physics plus `lqcd.storage.path`, the path on the storage system,
+and `AmSC.common.location`, a `globus://<collection>/<path>` URL. So
+`--paths` gives a list to feed `hsi get`, a Globus batch transfer, or
+whatever moves data at the site the bytes are on; the full dump lands in
+`work/<ensemble>/catalog_dump.json`. `--mql` runs a raw MetaCat query
+instead (so does `metacat query -j -m '...'` from the MetaCat CLI), the
+browser routes are in `docs/browsing.md`, and the field names in
+`docs/schema.md`.
 
 ## Adding an ensemble
 
-1. Copy `ensembles/cl3_32_64_b6p5_m0p1788.toml`, change `[ensemble]`,
-   `[lqcd]`, `[streams.*]`. Take numbers from the HMC input XML, not from
-   memory; the file header says where the originals are.
-2. If the stream directories have a different layout, adjust the `[[files]]`
-   regexes. `build_records.py` prints what it could not classify.
-3. Run the four steps.
-
-## Querying what is there (any MetaCat client, no token)
+Cataloging is a hand-written description, an inventory of the files, and
+three scripts with JSON between them, so every stage can be inspected and
+re-run on its own:
 
 ```
-metacat query -j -m 'files from lqcd:cl3_32_64_b6p5_m0p1788 where lqcd.artifact.kind = "gauge_config" and lqcd.stream = "a" and lqcd.trajectory >= 1000'
+python3 scripts/build_records.py    ensembles/<name>.toml                   # TOML + inventory -> work/<name>/records.json (offline)
+python3 scripts/declare_records.py  work/<name>/records.json                # the only write to MetaCat
+python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json  # round trip; exit 0 when the catalog matches
 ```
 
-or `python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --stream a --trajectory-min 1000 --paths`
-to get the HPSS paths for `hsi get` or a Globus batch transfer from the
-`NERSC HPSS` collection named in each record's `AmSC.common.location`.
-`retrieve_records.py --list-ensembles` shows every ensemble with its physics
-summary, and `retrieve_records.py --kind gauge_config --beta 6.5 --kappa 0.1308`
-searches across ensembles (mass and kappa both match either way of storing it).
+1. **Describe the ensemble** in `ensembles/<name>.toml`: copy
+   `ensembles/cl3_32_64_b6p5_m0p1788.toml` and change `[ensemble]`, `[lqcd]`
+   and `[streams.*]`. Take numbers from the HMC input, not from memory
+   (`scripts/lime_hmc_params.py` reads Chroma's input back out of a LIME
+   header). If the stream directories have a different layout, adjust the
+   `[[files]]` regexes; `build_records.py` prints what it could not classify.
+2. **List the files** into `work/<name>/inventory.json`: one entry per file
+   with its path, size, date and owner, grouped by stream (format in
+   `docs/adding_an_ensemble.md`). The worked example is NERSC HPSS, where
+   `python3 scripts/hpss_inventory.py ensembles/<name>.toml` builds it from a
+   metadata-only `hsi ls -lR` in minutes per TB; the same JSON written from a
+   `find`, an object-store listing or a Globus `ls` serves any other storage.
+3. **Build, declare, check.** `declare_records.py` is idempotent: it looks up
+   what is already in the namespace and only declares the rest, so a failed
+   batch is just re-run. `--dry-run` runs the local checks (names, collisions,
+   required fields) and, once the dataset exists, the server's validation,
+   without writing; `--limit N` creates the dataset and declares only the
+   first N records, a good first push before declaring tens of thousands;
+   `--update-existing` pushes new metadata from an edited TOML onto records
+   that are already there (merge, never replace, so FNAL-stamped fields
+   survive), and `--dataset-only` restricts that to the dataset record. The
+   `--diff` lists what is missing, extra or different, and is the test that
+   the catalog says what you meant.
+
+Groups without write access stop after the build and hand `records.json` to
+someone who has it (see Authentication). Derived products (propagators,
+correlators) get their own TOML with `parent = "<ensemble>"`; see
+`docs/adding_an_ensemble.md`.
 
 ## Layout
 
@@ -199,37 +218,37 @@ work/                   generated per-ensemble JSON (gitignored)
 
 ## What is in the catalog
 
-One dataset per ensemble (`lqcd:<ensemble>`), holding every stream's
+One dataset per ensemble (`lqcd:<ensemble>`) holding every stream's
 configurations, plus one dataset per derived product
-(`lqcd:<ensemble>_<product>`) pointing back at it. Configurations are
-counted across all streams. Regenerate this table with
-`python3 scripts/retrieve_records.py --summary` (anonymous, a minute).
+(`lqcd:<ensemble>_<product>`, today sparse propagators) pointing back at it.
+Configurations are counted across all streams; 0 means the configurations
+have no catalogued storage location yet. Regenerate with
+`python3 scripts/retrieve_records.py --summary` (`--derived` adds the
+propagator datasets).
 
-| ensemble | Nf | volume | beta | streams | configs | derived datasets (records) |
-|---|---|---|---|---|---|---|
-| `cl21_48_96_b6p3_m0p2416_m0p2050` | 2+1 | 48x48x48x96 | 6.3 | 8 | 5456 | `sparseprops` (22658), `sparseprops_a2a` (3214), `sparseprops_smearingtests` (2140) |
-| `cl21_64_128_b6p3_m0p2416_m0p2050` | 2+1 | 64x64x64x128 | 6.3 | 4 | 3128 | `sparseprops` (3303) |
-| `cl21_64_192_b6p5_m0p2080_m0p1788` | 2+1 | 64x64x64x192 | 6.5 | 2 | 1422 |  |
-| `cl21_72_192_b6p5_m0p2091_m0p1778` | 2+1 | 72x72x72x192 | 6.5 | 4 | 2201 | `sparseprops` (1698) |
-| `cl21_72_192_b6p7_m0p1843_m0p1640` | 2+1 | 72x72x72x192 | 6.7 | 1 | 1132 |  |
-| `cl21_96_192_b6p5_m0p2095_m0p1793` | 2+1 | 96x96x96x192 | 6.5 | 2 | 1165 | `sparseprops` (4958), `sparseprops_a2a` (606) |
-| `cl3_16_48_b6p1_m0p2450` | 3 | 16x16x16x48 | 6.1 | 8 | 32080 | `sparseprops` (80) |
-| `cl3_24_48_b6p1_m0p2450` | 3 | 24x24x24x48 | 6.1 | 16 | 16218 | `sparseprops_legacy` (1911) |
-| `cl3_30_60_b6p2_m0p2200` | 3 | 30x30x30x60 | 6.2 | 1 | 685 | `sparseprops` (3225) |
-| `cl3_30_60_b6p2_m0p2250` | 3 | 30x30x30x60 | 6.2 | 1 | 662 | `sparseprops` (3687) |
-| `cl3_32_48_b6p1_m0p2450` | 3 | 32x32x32x48 | 6.1 | 3 | 16 multi-config archives | `sparseprops` (5140), `sparseprops_a2a` (5040) |
-| `cl3_32_64_b6p5_m0p1788` | 3 | 32x32x32x64 | 6.5 | 4 | 1242 |  |
-| `cl3_36_64_b6p3_m0p2050` | 3 | 36x36x36x64 | 6.3 | 1 | 735 | `sparseprops` (5082) |
-| `cl3_36_64_b6p3_m0p2170` | 3 | 36x36x36x64 | 6.3 | 1 | 520 | `sparseprops` (768) |
-| `cl3_48_64_b6p1_m0p2450` | 3 | 48x48x48x64 | 6.1 | 0 | none on HPSS | `sparseprops` (1259) |
-| `cl3_48_64_b6p3_m0p2050` | 3 | 48x48x48x64 | 6.3 | 0 | none on HPSS | `sparseprops` (2056) |
-| `cl3_48_96_b6p5_m0p1788` | 3 | 48x48x48x96 | 6.5 | 1 | 816 | `sparseprops` (10066) |
+| ensemble | Nf | streams | configs |
+|---|---|---|---|
+| `cl21_48_96_b6p3_m0p2416_m0p2050` | 2+1 | 8 | 5456 |
+| `cl21_64_128_b6p3_m0p2416_m0p2050` | 2+1 | 4 | 3128 |
+| `cl21_64_192_b6p5_m0p2080_m0p1788` | 2+1 | 2 | 1422 |
+| `cl21_72_192_b6p5_m0p2091_m0p1778` | 2+1 | 4 | 2201 |
+| `cl21_72_192_b6p7_m0p1843_m0p1640` | 2+1 | 1 | 1132 |
+| `cl21_96_192_b6p5_m0p2095_m0p1793` | 2+1 | 2 | 1165 |
+| `cl3_16_48_b6p1_m0p2450` | 3 | 8 | 32080 |
+| `cl3_24_48_b6p1_m0p2450` | 3 | 16 | 16218 |
+| `cl3_30_60_b6p2_m0p2200` | 3 | 1 | 685 |
+| `cl3_30_60_b6p2_m0p2250` | 3 | 1 | 662 |
+| `cl3_32_48_b6p1_m0p2450` | 3 | 3 | 16 archives |
+| `cl3_32_64_b6p5_m0p1788` | 3 | 4 | 1242 |
+| `cl3_36_64_b6p3_m0p2050` | 3 | 1 | 735 |
+| `cl3_36_64_b6p3_m0p2170` | 3 | 1 | 520 |
+| `cl3_48_64_b6p1_m0p2450` | 3 | 0 | 0 |
+| `cl3_48_64_b6p3_m0p2050` | 3 | 0 | 0 |
+| `cl3_48_96_b6p5_m0p1788` | 3 | 1 | 816 |
 
 17 ensembles, 67462 configurations, 18 derived datasets (76891 records), namespace `lqcd`, 2026-10-20.
 
-`sparseprops` are timeslice-to-all sparse propagators, `sparseprops_a2a`
-all-to-all (see `docs/schema.md`). The cl3 datasets carry the H-dibaryon
-analysis observables (t0, w0, pion and nucleon masses, lattice spacing).
-Not yet catalogued: correlators, and checksums (which need a copy on FDP).
-The cl21 ensembles are also catalogued by JLab; reconciling the two is
-`docs/open_questions.md` item 10.
+The cl3 datasets carry the H-dibaryon analysis observables (t0, w0, pion
+and nucleon masses, lattice spacing). Not yet catalogued: correlators, and
+checksums (which need a copy on FDP). The cl21 ensembles are also catalogued
+by JLab; reconciling the two is `docs/open_questions.md` item 10.

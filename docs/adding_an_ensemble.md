@@ -156,12 +156,45 @@ python3 scripts/build_records.py ensembles/<name>.toml --archive-index work/<nam
 Each indexed record then carries `lqcd.prop.tsrc_list`, `flavors`,
 `smearing_combinations` and `n_members` read from its own archive.
 
-## 2. Run the pipeline
+## 2. Inventory the files
+
+`build_records.py` reads `work/<name>/inventory.json`: the files of every
+stream, with their sizes, dates and owners. It does not care how that list
+was made.
+
+```json
+{
+  "ensemble": "<name>", "storage": "nersc_hpss", "root": "/home/w/wdetmold/clover-iso",
+  "generated_at": "2026-10-19T17:06:23Z",
+  "streams": {
+    "main": {"dir": "<name>", "files": [
+      {"path": "/home/w/wdetmold/clover-iso/<name>/cfgs/<name>_cfg_10.lime",
+       "rel_path": "cfgs/<name>_cfg_10.lime", "size": 6115309384,
+       "mtime": "2024-07-19", "owner": "wdetmold"}
+    ]}
+  }
+}
+```
+
+One entry per file; `rel_path` (relative to the stream directory) is what
+the `[[files]]` regexes match, `path` becomes `lqcd.storage.path` and the
+`globus://` location, and `storage` names the `[storage.*]` table in
+`catalog.toml`. Keys of `streams` are the stream labels from the TOML.
+
+For NERSC HPSS, `scripts/hpss_inventory.py ensembles/<name>.toml` writes
+this from a metadata-only `hsi ls -lR` of each stream directory (minutes
+per TB; `--listing` re-parses a saved dump offline). That script is the
+worked example, not a required step: on a POSIX filesystem the same JSON
+comes from `find -printf`, on an object store from a bucket listing, on a
+remote site from a Globus `ls`. Only the four keys above per file are
+needed.
+
+## 3. Run the pipeline
 
 ```
 module load python                       # or activate the venv; either way, where `pip install -e .` ran
 E=ensembles/<name>.toml
-python3 scripts/hpss_inventory.py  $E    # metadata-only `hsi ls -lR`, minutes per TB
+python3 scripts/hpss_inventory.py  $E    # or write work/<name>/inventory.json yourself (section 2)
 python3 scripts/build_records.py   $E    # offline; read work/<name>/records.json
 python3 scripts/declare_records.py work/<name>/records.json --limit 5   # creates dataset + 5 files
 python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json
@@ -169,7 +202,7 @@ python3 scripts/declare_records.py work/<name>/records.json             # the re
 python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json   # must print OK
 ```
 
-## 3. Changing metadata later
+## 4. Changing metadata later
 
 Edit the TOML, rebuild, then
 
