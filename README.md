@@ -1,10 +1,6 @@
 # usqcd-catalog
 
-Scripts and conventions for cataloging USQCD lattice-QCD data (gauge-field
-ensembles today; propagators and correlators next) in the AmSC Fermi Data
-Platform MetaCat catalog, starting from files that live on a tape archive
-(NERSC HPSS). Built around the NPLQCD `clover-iso` ensembles; meant to be
-copied and adapted by other USQCD groups.
+Scripts for cataloging and discovering USQCD lattice-QCD data — gauge-field ensembles and reusable building blocks for quark propagators —  in the AmSC Fermi Data Platform MetaCat catalog.
 
 The pipeline is four small Python scripts with JSON between them, so every
 step can be inspected and re-run on its own:
