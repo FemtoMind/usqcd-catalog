@@ -226,27 +226,27 @@ have no catalogued storage location yet. Regenerate with
 `python3 scripts/retrieve_records.py --summary` (`--derived` adds the
 propagator datasets).
 
-| ensemble | Nf | streams | configs |
-|---|---|---|---|
-| `cl21_48_96_b6p3_m0p2416_m0p2050` | 2+1 | 8 | 5456 |
-| `cl21_64_128_b6p3_m0p2416_m0p2050` | 2+1 | 4 | 3128 |
-| `cl21_64_192_b6p5_m0p2080_m0p1788` | 2+1 | 2 | 1422 |
-| `cl21_72_192_b6p5_m0p2091_m0p1778` | 2+1 | 4 | 2201 |
-| `cl21_72_192_b6p7_m0p1843_m0p1640` | 2+1 | 1 | 1132 |
-| `cl21_96_192_b6p5_m0p2095_m0p1793` | 2+1 | 2 | 1165 |
-| `cl3_16_48_b6p1_m0p2450` | 3 | 8 | 32080 |
-| `cl3_24_48_b6p1_m0p2450` | 3 | 16 | 16218 |
-| `cl3_30_60_b6p2_m0p2200` | 3 | 1 | 685 |
-| `cl3_30_60_b6p2_m0p2250` | 3 | 1 | 662 |
-| `cl3_32_48_b6p1_m0p2450` | 3 | 3 | 12735 |
-| `cl3_32_64_b6p5_m0p1788` | 3 | 4 | 1242 |
-| `cl3_36_64_b6p3_m0p2050` | 3 | 1 | 735 |
-| `cl3_36_64_b6p3_m0p2170` | 3 | 1 | 520 |
-| `cl3_48_64_b6p1_m0p2450` | 3 | 0 | 0 |
-| `cl3_48_64_b6p3_m0p2050` | 3 | 0 | 0 |
-| `cl3_48_96_b6p5_m0p1788` | 3 | 1 | 816 |
+| ensemble | Nf | streams | configs | size |
+|---|---|---|---|---|
+| `cl21_48_96_b6p3_m0p2416_m0p2050` | 2+1 | 8 | 5456 | 30.3 TB |
+| `cl21_64_128_b6p3_m0p2416_m0p2050` | 2+1 | 4 | 3128 | 54.9 TB |
+| `cl21_64_192_b6p5_m0p2080_m0p1788` | 2+1 | 2 | 1422 | 37.5 TB |
+| `cl21_72_192_b6p5_m0p2091_m0p1778` | 2+1 | 4 | 2201 | 82.6 TB |
+| `cl21_72_192_b6p7_m0p1843_m0p1640` | 2+1 | 1 | 1132 | 42.4 TB |
+| `cl21_96_192_b6p5_m0p2095_m0p1793` | 2+1 | 2 | 1165 | 103.5 TB |
+| `cl3_16_48_b6p1_m0p2450` | 3 | 8 | 32080 | 3.3 TB |
+| `cl3_24_48_b6p1_m0p2450` | 3 | 16 | 16218 | 5.7 TB |
+| `cl3_30_60_b6p2_m0p2200` | 3 | 1 | 685 | 602.4 GB |
+| `cl3_30_60_b6p2_m0p2250` | 3 | 1 | 662 | 583.1 GB |
+| `cl3_32_48_b6p1_m0p2450` | 3 | 3 | 12735 | 9.3 TB |
+| `cl3_32_64_b6p5_m0p1788` | 3 | 4 | 1242 | 1.4 TB |
+| `cl3_36_64_b6p3_m0p2050` | 3 | 1 | 735 | 1.2 TB |
+| `cl3_36_64_b6p3_m0p2170` | 3 | 1 | 520 | 840.2 GB |
+| `cl3_48_64_b6p1_m0p2450` | 3 | 0 | 0 | 0 |
+| `cl3_48_64_b6p3_m0p2050` | 3 | 0 | 0 | 0 |
+| `cl3_48_96_b6p5_m0p1788` | 3 | 1 | 816 | 4.6 TB |
 
-17 ensembles, 80197 configurations, 18 derived datasets (76891 records), namespace `lqcd`, 2026-10-20.
+17 ensembles, 80197 configurations, 378.8 TB; 18 derived datasets, 76891 records, 6.1 PB. Namespace `lqcd`, 2026-10-20.
 
 The cl3 datasets carry the H-dibaryon analysis observables (t0, w0, pion
 and nucleon masses, lattice spacing). Not yet catalogued: correlators, and

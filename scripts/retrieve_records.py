@@ -129,23 +129,28 @@ def summary_table(client, ns: str, with_derived: bool = False) -> str:
     (lqcd.parent.ensemble). This is what the README's catalog summary is
     generated from."""
     gauge: dict[str, dict] = {}
-    derived: dict[str, list[tuple[str, str, int]]] = {}
+    derived: dict[str, list[tuple[str, str, int, int]]] = {}
     for d in client.list_datasets(namespace_pattern=ns):
         did = f"{d['namespace']}:{d['name']}"
         full = client.get_dataset(did) or {}
         md = full.get("metadata") or d.get("metadata") or {}
         kind = md.get("lqcd.artifact.kind")
-        n_files = full.get("file_count") or 0
+        # The server sums file sizes itself (summary="count"), so this stays cheap.
+        count = (list(client.query(f"files from {did}", summary="count")) or [{}])[0]
+        n_files = count.get("count") or full.get("file_count") or 0
+        n_bytes = count.get("total_size") or 0
         if kind == "gauge_ensemble" or (kind is None and "lqcd.ensemble" in md):
-            gauge[d["name"]] = {"md": md, "n_files": n_files}
+            gauge[d["name"]] = {"md": md, "n_files": n_files, "bytes": n_bytes}
         elif md.get("lqcd.parent.ensemble"):
             parent = md["lqcd.parent.ensemble"]
             suffix = d["name"][len(parent) + 1:] if d["name"].startswith(parent + "_") else d["name"]
-            derived.setdefault(parent, []).append((suffix, kind or "", n_files))
-    lines = ["| ensemble | Nf | streams | configs |", "|---|---|---|---|"]
+            derived.setdefault(parent, []).append((suffix, kind or "", n_files, n_bytes))
+    lines = ["| ensemble | Nf | streams | configs | size |", "|---|---|---|---|---|"]
     total_cfgs = 0
+    total_bytes = 0
     for name in sorted(gauge):
         md = gauge[name]["md"]
+        total_bytes += gauge[name]["bytes"]
         n_cfg = md.get("lqcd.n_configs") or 0
         total_cfgs += n_cfg
         streams = md.get("lqcd.streams") or []
@@ -156,16 +161,19 @@ def summary_table(client, ns: str, with_derived: bool = False) -> str:
         # range but no member count, so say how many archives instead; 0 means
         # the configurations have no catalogued location yet.
         cfg_cell = str(n_cfg) if n_cfg else (f"{n_arch} archives" if n_arch else "0")
-        lines.append(f"| `{name}` | {nf} | {len(streams)} | {cfg_cell} |")
+        size = human_bytes(gauge[name]["bytes"]) if gauge[name]["bytes"] else "0"
+        lines.append(f"| `{name}` | {nf} | {len(streams)} | {cfg_cell} | {size} |")
     n_derived = sum(len(v) for v in derived.values())
-    n_records = sum(n for v in derived.values() for _, _, n in v)
-    lines.append(f"\n{len(gauge)} ensembles, {total_cfgs} configurations, {n_derived} derived datasets "
-                 f"({n_records} records), namespace `{ns}`, {utcnow()[:10]}.")
+    n_records = sum(n for v in derived.values() for _, _, n, _ in v)
+    d_bytes = sum(b for v in derived.values() for _, _, _, b in v)
+    lines.append(f"\n{len(gauge)} ensembles, {total_cfgs} configurations, {human_bytes(total_bytes)}; "
+                 f"{n_derived} derived datasets, {n_records} records, {human_bytes(d_bytes)}. "
+                 f"Namespace `{ns}`, {utcnow()[:10]}.")
     if with_derived:
-        lines += ["", "| derived dataset | kind | records |", "|---|---|---|"]
+        lines += ["", "| derived dataset | kind | records | size |", "|---|---|---|---|"]
         for parent in sorted(derived):
-            for suffix, kind, n in sorted(derived[parent]):
-                lines.append(f"| `{parent}_{suffix}` | {kind} | {n} |")
+            for suffix, kind, n, b in sorted(derived[parent]):
+                lines.append(f"| `{parent}_{suffix}` | {kind} | {n} | {human_bytes(b)} |")
     return "\n".join(lines)
 
 
