@@ -125,11 +125,24 @@ someone with write access to run `declare_records.py`.
 
 Reads are anonymous; nothing in this section needs an account.
 
+Summarize available gauge-field ensembles
 ```
 python3 scripts/retrieve_records.py --summary              # every ensemble: Nf, streams, configurations (the table below)
-python3 scripts/retrieve_records.py --summary --derived    # plus the propagator datasets that point at each one
+```
+List available ensemble details
+```
 python3 scripts/retrieve_records.py --list-ensembles       # one line per ensemble with beta, volume, masses, a, m_pi
+```
+Find derived observables (e.g. pion mass, Wilson-flow scales)
+```
+python3 scripts/retrieve_records.py --summary --derived    # plus the propagator datasets that point at each one
+```
+Find filesystem paths for trajectories in a specific ensemble
+```
 python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --stream a --trajectory-min 1000 --paths
+```
+Discover guage-field configurations with particular action parameter values
+```
 python3 scripts/retrieve_records.py --kind gauge_config --beta 6.5 --kappa 0.1308   # across ensembles
 ```
 
@@ -137,12 +150,17 @@ Filters: `--kind` (`gauge_config`, `sparse_propagator_timeslice_to_all`,
 `sparse_propagator_all_to_all`, `hmc_input`, ...), `--stream`,
 `--trajectory` / `--trajectory-min` / `--trajectory-max`, `--beta`, and
 `--mass` or `--kappa` (either matches records stored the other way; `--flavor`
-and `--tol` adjust them). Every hit is a self-describing record: the
+and `--tol` adjust them). 
+
+Every hit is a self-describing record: the
 ensemble's physics plus `lqcd.storage.path`, the path on the storage system,
-and `AmSC.common.location`, a `globus://<collection>/<path>` URL. So
+and `AmSC.common.location`, a `globus://<collection>/<path>` URL.
+
 `--paths` gives a list to feed `hsi get`, a Globus batch transfer, or
 whatever moves data at the site the bytes are on; the full dump lands in
-`work/<ensemble>/catalog_dump.json`. `--mql` runs a raw MetaCat query
+`work/<ensemble>/catalog_dump.json`. 
+
+`--mql` runs a raw MetaCat query
 instead (so does `metacat query -j -m '...'` from the MetaCat CLI), the
 browser routes are in `docs/browsing.md`, and the field names in
 `docs/schema.md`.
