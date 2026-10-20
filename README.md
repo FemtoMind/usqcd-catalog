@@ -127,25 +127,29 @@ someone with write access to run `declare_records.py`.
 
 ```
 module load python          # or activate the venv you installed into
-ENS=ensembles/cl3_32_64_b6p5_m0p1788.toml
-W=work/cl3_32_64_b6p5_m0p1788
-
-python3 scripts/hpss_inventory.py  $ENS                      # minutes; metadata-only HPSS ls -> $W/inventory.json
-python3 scripts/build_records.py   $ENS                      # instant, offline; review $W/records.json
-python3 scripts/declare_records.py $W/records.json --dry-run # local checks (+ server checks once the dataset exists)
-python3 scripts/declare_records.py $W/records.json --limit 5 # creates the dataset, declares 5 files
-python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --diff $W/records.json
-python3 scripts/declare_records.py $W/records.json           # the rest
-python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --diff $W/records.json   # must print OK
+python3 scripts/hpss_inventory.py  ensembles/cl3_32_64_b6p5_m0p1788.toml   # hsi ls -lR  -> work/<ens>/inventory.json
+python3 scripts/build_records.py   ensembles/cl3_32_64_b6p5_m0p1788.toml   # offline     -> work/<ens>/records.json
+python3 scripts/declare_records.py work/cl3_32_64_b6p5_m0p1788/records.json # the only write to MetaCat
+python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --diff work/cl3_32_64_b6p5_m0p1788/records.json
 ```
 
-`declare_records.py` is idempotent: it looks up what is already in the
-namespace and only declares the rest, so a failed batch is just re-run. Use
-`--update-existing` after editing the TOML to push new metadata onto records
-that are already there (merge, never replace, so FNAL-stamped fields survive).
+The inventory takes minutes per TB of metadata and needs HPSS access; the
+build is instant and offline, so `records.json` can be reviewed (and sent
+to someone with write access) before anything is declared. `declare_records.py`
+is idempotent: it looks up what is already in the namespace and only
+declares the rest, so a failed batch is just re-run. Its options:
+
+* `--dry-run` runs the local checks (names, collisions, required fields) and,
+  once the dataset exists, the server's validation, without writing.
+* `--limit N` creates the dataset and declares only the first N records; a
+  good first push, followed by `--diff`, before declaring tens of thousands.
+* `--update-existing` pushes new metadata from an edited TOML onto records
+  that are already there (merge, never replace, so FNAL-stamped fields
+  survive); `--dataset-only` restricts that to the dataset record.
 
 `retrieve_records.py --diff` is the round-trip test: it exits 0 only when
-every intended record is in the catalog with the intended size and metadata.
+every intended record is in the catalog with the intended size and metadata,
+and lists what is missing, extra or different otherwise.
 
 ## Adding an ensemble
 
@@ -197,49 +201,39 @@ docs/browsing.md        looking at records from a browser (REST URLs, dCache lis
 work/                   generated per-ensemble JSON (gitignored)
 ```
 
-## Status / roadmap
+## What is in the catalog
 
-- [x] cl3_32_64_b6p5_m0p1788: 4 streams, 1242 configs, 2502 records, 1.4 TB on HPSS,
-      declared to `lqcd:cl3_32_64_b6p5_m0p1788` 2026-10-14 and round-trip verified (0 diffs)
-- [x] cl3_32_48_b6p1_m0p2450: 3 streams, configs stored as 16 multi-config tar archives
-      (9.3 TB), declared 2026-10-19 and round-trip verified (0 diffs)
-- [x] cl3_16_48_b6p1_m0p2450: 8 streams, each one htar archive of 4010 configs in a shared
-      directory (3.3 TB), declared 2026-10-19 and round-trip verified (0 diffs)
-- [x] cl3_24_48_b6p1_m0p2450: 16 streams, 16218 configs, 5.7 TB, declared 2026-10-19
-- [x] cl3_30_60_b6p2_m0p2200 / m0p2250, cl3_36_64_b6p3_m0p2050 / m0p2170,
-      cl3_48_96_b6p5_m0p1788: single streams, 520 to 816 configs each, declared
-      2026-10-19 and round-trip verified (0 diffs)
-- [x] downstream observables (t0, w0, a*m_pi, a*M_N, m_pi/M_N, lattice spacing in the t0
-      and w0 schemes) registered on all 11 cl3 datasets from the H-dibaryon analysis
-      (`ensembles/sources/`), 2026-10-19
-- [ ] cl3_48_64_b6p1_m0p2450 and cl3_48_64_b6p3_m0p2050: datasets exist with physics and
-      observables but no file records; no gauge configurations under clover-iso on NERSC
-      HPSS (only analysis output and sparse propagators); location being asked around
-- [x] all other cl3 ensembles (9 datasets, ~37k records, ~32 TB)
-- [x] cl21 ensembles with configurations on HPSS (6 datasets, 21 streams, ~18k records,
-      ~350 TB): cl21_48_96_b6p3, cl21_64_128_b6p3, cl21_64_192_b6p5, cl21_72_192_b6p5,
-      cl21_72_192_b6p7, cl21_96_192_b6p5, declared 2026-10-19. Action parameters read
-      from the Chroma input embedded in LIME headers (`scripts/lime_hmc_params.py`).
-      These ensembles are also catalogued by JLab; a reconciliation step is pending
-      (`docs/open_questions.md`, item 10).
-- [ ] cl21 beta=6.1 directories (cl21_24_64, cl21_32_96, cl21_48_96_b6p1_a..g) hold only
-      2012-2015 analysis output (contraction databases, hadspec, blocks), no configurations
-- [x] derived datasets: `ensembles/<ens>_<product>.toml` with `parent = "<ens>"`, records
-      carry `lqcd.parent.*` back to the configuration; first one
-      `lqcd:cl3_48_96_b6p5_m0p1788_sparseprops` (10066 records, 58.7 TB) declared 2026-10-19
-- [x] sparse propagators for all cl3 ensembles with any on HPSS: 10 timeslice-to-all datasets
-      (`<ens>_sparseprops`, plus `cl3_24_48..._sparseprops_legacy` for the 2021 set on the
-      original stream) and 1 all-to-all dataset (`cl3_32_48_b6p1_m0p2450_sparseprops_a2a`),
-      ~40k records, ~600 TB, declared 2026-10-19 and round-trip verified. cl3_32_64 (ensemble A)
-      has no propagators under clover-iso on HPSS.
-- [x] cl21 sparse propagators, 7 datasets, ~38k records, ~6.1 PB, declared 2026-10-19:
-      timeslice-to-all `cl21_48_96_b6p3_..._sparseprops` (8 streams, 1.4 PB, plus the run XML),
-      `cl21_64_128_b6p3_..._sparseprops`, `cl21_72_192_b6p5_..._sparseprops`,
-      `cl21_96_192_b6p5_..._sparseprops`; all-to-all (OLCF Frontier)
-      `cl21_48_96_b6p3_..._sparseprops_a2a` (light + strange, every timeslice, plus the
-      timeslice-to-self HDF5 blocks) and `cl21_96_192_b6p5_..._sparseprops_a2a`; and the 2025
-      smearing tests as their own dataset. Where directory names are only nominal (random
-      source timeslice per configuration) each record carries what its htar index says
-      (`scripts/sprop_members.py`). cl21_64_192 and cl21_72_192_b6p7 have no propagators on HPSS.
-- [ ] correlators (cl3 and cl21), then the JLab reconciliation of the cl21 records
-- [ ] checksums: back up to FDP, then `attach_checksums.py --from-dcache`
+One dataset per ensemble (`lqcd:<ensemble>`), holding every stream's
+configurations, plus one dataset per derived product
+(`lqcd:<ensemble>_<product>`) pointing back at it. Configurations are
+counted across all streams. Regenerate this table with
+`python3 scripts/retrieve_records.py --summary` (anonymous, a minute).
+
+| ensemble | Nf | volume | beta | streams | configs | derived datasets (records) |
+|---|---|---|---|---|---|---|
+| `cl21_48_96_b6p3_m0p2416_m0p2050` | 2+1 | 48x48x48x96 | 6.3 | 8 | 5456 | `sparseprops` (22658), `sparseprops_a2a` (3214), `sparseprops_smearingtests` (2140) |
+| `cl21_64_128_b6p3_m0p2416_m0p2050` | 2+1 | 64x64x64x128 | 6.3 | 4 | 3128 | `sparseprops` (3303) |
+| `cl21_64_192_b6p5_m0p2080_m0p1788` | 2+1 | 64x64x64x192 | 6.5 | 2 | 1422 |  |
+| `cl21_72_192_b6p5_m0p2091_m0p1778` | 2+1 | 72x72x72x192 | 6.5 | 4 | 2201 | `sparseprops` (1698) |
+| `cl21_72_192_b6p7_m0p1843_m0p1640` | 2+1 | 72x72x72x192 | 6.7 | 1 | 1132 |  |
+| `cl21_96_192_b6p5_m0p2095_m0p1793` | 2+1 | 96x96x96x192 | 6.5 | 2 | 1165 | `sparseprops` (4958), `sparseprops_a2a` (606) |
+| `cl3_16_48_b6p1_m0p2450` | 3 | 16x16x16x48 | 6.1 | 8 | 32080 | `sparseprops` (80) |
+| `cl3_24_48_b6p1_m0p2450` | 3 | 24x24x24x48 | 6.1 | 16 | 16218 | `sparseprops_legacy` (1911) |
+| `cl3_30_60_b6p2_m0p2200` | 3 | 30x30x30x60 | 6.2 | 1 | 685 | `sparseprops` (3225) |
+| `cl3_30_60_b6p2_m0p2250` | 3 | 30x30x30x60 | 6.2 | 1 | 662 | `sparseprops` (3687) |
+| `cl3_32_48_b6p1_m0p2450` | 3 | 32x32x32x48 | 6.1 | 3 | 16 multi-config archives | `sparseprops` (5140), `sparseprops_a2a` (5040) |
+| `cl3_32_64_b6p5_m0p1788` | 3 | 32x32x32x64 | 6.5 | 4 | 1242 |  |
+| `cl3_36_64_b6p3_m0p2050` | 3 | 36x36x36x64 | 6.3 | 1 | 735 | `sparseprops` (5082) |
+| `cl3_36_64_b6p3_m0p2170` | 3 | 36x36x36x64 | 6.3 | 1 | 520 | `sparseprops` (768) |
+| `cl3_48_64_b6p1_m0p2450` | 3 | 48x48x48x64 | 6.1 | 0 | none on HPSS | `sparseprops` (1259) |
+| `cl3_48_64_b6p3_m0p2050` | 3 | 48x48x48x64 | 6.3 | 0 | none on HPSS | `sparseprops` (2056) |
+| `cl3_48_96_b6p5_m0p1788` | 3 | 48x48x48x96 | 6.5 | 1 | 816 | `sparseprops` (10066) |
+
+17 ensembles, 67462 configurations, 18 derived datasets (76891 records), namespace `lqcd`, 2026-10-20.
+
+`sparseprops` are timeslice-to-all sparse propagators, `sparseprops_a2a`
+all-to-all (see `docs/schema.md`). The cl3 datasets carry the H-dibaryon
+analysis observables (t0, w0, pion and nucleon masses, lattice spacing).
+Not yet catalogued: correlators, and checksums (which need a copy on FDP).
+The cl21 ensembles are also catalogued by JLab; reconciling the two is
+`docs/open_questions.md` item 10.

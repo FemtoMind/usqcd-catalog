@@ -8,6 +8,8 @@ Step 4: pull an ensemble's records back out of MetaCat, and check the round trip
     retrieve_records.py cl3_32_64_b6p5_m0p1788 --diff work/cl3_32_64_b6p5_m0p1788/records.json
     retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --paths   # one HPSS path per line
     retrieve_records.py --list-ensembles                                      # what ensembles exist
+    retrieve_records.py --summary                                             # the same as a Markdown table,
+                                                                              # with each ensemble's derived datasets
     retrieve_records.py --kind gauge_config --beta 6.5 --kappa 0.130849       # discovery across ensembles;
                                                                               # --mass or --kappa both match
                                                                               # records stored either way
@@ -120,6 +122,49 @@ def list_ensembles(client, ns: str) -> list[dict]:
     return out
 
 
+def summary_table(client, ns: str) -> str:
+    """Markdown table of every ensemble in the namespace, alphabetical, with its
+    configuration count across streams and the derived datasets that point at
+    it (lqcd.parent.ensemble). This is what the README's catalog summary is
+    generated from."""
+    gauge: dict[str, dict] = {}
+    derived: dict[str, list[tuple[str, str, int]]] = {}
+    for d in client.list_datasets(namespace_pattern=ns):
+        did = f"{d['namespace']}:{d['name']}"
+        full = client.get_dataset(did) or {}
+        md = full.get("metadata") or d.get("metadata") or {}
+        kind = md.get("lqcd.artifact.kind")
+        n_files = full.get("file_count") or 0
+        if kind == "gauge_ensemble" or (kind is None and "lqcd.ensemble" in md):
+            gauge[d["name"]] = {"md": md, "n_files": n_files}
+        elif md.get("lqcd.parent.ensemble"):
+            parent = md["lqcd.parent.ensemble"]
+            suffix = d["name"][len(parent) + 1:] if d["name"].startswith(parent + "_") else d["name"]
+            derived.setdefault(parent, []).append((suffix, kind or "", n_files))
+    lines = ["| ensemble | Nf | volume | beta | streams | configs | derived datasets (records) |",
+             "|---|---|---|---|---|---|---|"]
+    total_cfgs = 0
+    for name in sorted(gauge):
+        md = gauge[name]["md"]
+        vol = md.get("lqcd.volume") or []
+        vol_s = "x".join(str(v) for v in vol) if vol else ""
+        n_cfg = md.get("lqcd.n_configs") or 0
+        total_cfgs += n_cfg
+        streams = md.get("lqcd.streams") or []
+        flav = md.get("lqcd.flavor_structure") or ""
+        nf = "2+1" if flav.startswith("2+1") else str(md.get("lqcd.nflavors") or "")
+        prods = ", ".join(f"`{s}` ({n})" for s, _, n in sorted(derived.get(name, [])))
+        n_arch = md.get("lqcd.n_config_archives") or 0
+        # Multi-configuration tar archives without an index carry a trajectory
+        # range but no member count, so say how many archives instead.
+        cfg_cell = str(n_cfg) if n_cfg else (f"{n_arch} multi-config archives" if n_arch else "none on HPSS")
+        lines.append(f"| `{name}` | {nf} | {vol_s} | {md.get('lqcd.beta', '')} | {len(streams)} | {cfg_cell} | {prods} |")
+    lines.append(f"\n{len(gauge)} ensembles, {total_cfgs} configurations, "
+                 f"{sum(len(v) for v in derived.values())} derived datasets "
+                 f"({sum(n for v in derived.values() for _, _, n in v)} records), namespace `{ns}`, {utcnow()[:10]}.")
+    return "\n".join(lines)
+
+
 def compare(expected: dict, got: dict) -> dict:
     """Diff records.json (expected) against a catalog dump (got), ignoring
     server-stamped fields; numbers are compared with a 1e-9 tolerance."""
@@ -158,6 +203,8 @@ def main() -> int:
                     "omit to search every ensemble in the namespace by physics filters")
     ap.add_argument("--config", help="site config (default: catalog.toml in repo root)")
     ap.add_argument("--list-ensembles", action="store_true", help="print the ensembles in the catalog and exit")
+    ap.add_argument("--summary", action="store_true",
+                    help="print a Markdown table of the ensembles with configuration counts and derived datasets (for the README) and exit")
     ap.add_argument("--kind", help="lqcd.artifact.kind filter (gauge_config, hmc_input, hmc_log_archive)")
     ap.add_argument("--stream", help="lqcd.stream filter (main, a, b, ...)")
     ap.add_argument("--trajectory", type=int)
@@ -179,6 +226,9 @@ def main() -> int:
     ns = cfg["metacat"]["namespace"]
     client = metacat_client(cfg, need_auth=False)
 
+    if args.summary:
+        print(summary_table(client, ns))
+        return 0
     if args.list_ensembles:
         rows = list_ensembles(client, ns)
         print(f"{'dataset':40} {'Nf':>2} {'action':8} {'beta':>6} {'volume':>16} {'m_light':>10} {'kappa_l':>10} "
