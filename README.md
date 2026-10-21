@@ -135,13 +135,17 @@ python3 scripts/retrieve_records.py --list-ensembles       # one line per ensemb
 ```
 Find derived observables (e.g. pion mass, Wilson-flow scales)
 ```
-python3 scripts/retrieve_records.py --summary --derived    # plus the propagator datasets that point at each one
+python3 scripts/retrieve_records.py --observables          # t0, w0, lattice spacing per scheme, m_pi, M_N per ensemble
+```
+List derived datasets (sparse propagator sets) with their record counts and sizes
+```
+python3 scripts/retrieve_records.py --summary --derived    # the table below plus the datasets that point at each ensemble
 ```
 Find filesystem paths for trajectories in a specific ensemble
 ```
 python3 scripts/retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --stream a --trajectory-min 1000 --paths
 ```
-Discover guage-field configurations with particular action parameter values
+Discover gauge-field configurations with particular action parameter values
 ```
 python3 scripts/retrieve_records.py --kind gauge_config --beta 6.5 --kappa 0.1308   # across ensembles
 ```
@@ -264,6 +268,6 @@ propagator datasets).
 | `cl3_48_64_b6p3_m0p2050` | 3 | 0 | 0 | 0 |
 | `cl3_48_96_b6p5_m0p1788` | 3 | 1 | 816 | 4.6 TB |
 
-17 ensembles, 80197 configurations, 378.8 TB
-18 derived datasets, 76891 records, 6.1 PB
+17 ensembles, 80197 configurations, 378.8 TB  
+18 derived datasets, 76891 records, 6.1 PB  
 Namespace `lqcd`, 2026-10-20.

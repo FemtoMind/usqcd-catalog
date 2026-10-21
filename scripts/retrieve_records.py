@@ -8,8 +8,9 @@ Step 4: pull an ensemble's records back out of MetaCat, and check the round trip
     retrieve_records.py cl3_32_64_b6p5_m0p1788 --diff work/cl3_32_64_b6p5_m0p1788/records.json
     retrieve_records.py cl3_32_64_b6p5_m0p1788 --kind gauge_config --paths   # one HPSS path per line
     retrieve_records.py --list-ensembles                                      # what ensembles exist
-    retrieve_records.py --summary [--derived]                                 # Markdown table: Nf, streams, configs
+    retrieve_records.py --summary [--derived]                                 # Markdown table: Nf, streams, configs, size
                                                                               # (--derived: the propagator sets too)
+    retrieve_records.py --observables                                         # Markdown table: t0, w0, a, m_pi, M_N
     retrieve_records.py --kind gauge_config --beta 6.5 --kappa 0.130849       # discovery across ensembles;
                                                                               # --mass or --kappa both match
                                                                               # records stored either way
@@ -32,6 +33,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -166,14 +168,46 @@ def summary_table(client, ns: str, with_derived: bool = False) -> str:
     n_derived = sum(len(v) for v in derived.values())
     n_records = sum(n for v in derived.values() for _, _, n, _ in v)
     d_bytes = sum(b for v in derived.values() for _, _, _, b in v)
-    lines.append(f"\n{len(gauge)} ensembles, {total_cfgs} configurations, {human_bytes(total_bytes)}; "
-                 f"{n_derived} derived datasets, {n_records} records, {human_bytes(d_bytes)}. "
+    # Three lines with Markdown hard breaks (two trailing spaces), as in the README.
+    lines.append(f"\n{len(gauge)} ensembles, {total_cfgs} configurations, {human_bytes(total_bytes)}  \n"
+                 f"{n_derived} derived datasets, {n_records} records, {human_bytes(d_bytes)}  \n"
                  f"Namespace `{ns}`, {utcnow()[:10]}.")
     if with_derived:
         lines += ["", "| derived dataset | kind | records | size |", "|---|---|---|---|"]
         for parent in sorted(derived):
             for suffix, kind, n, b in sorted(derived[parent]):
                 lines.append(f"| `{parent}_{suffix}` | {kind} | {n} | {human_bytes(b)} |")
+    return "\n".join(lines)
+
+
+def observables_table(client, ns: str) -> str:
+    """Markdown table of the downstream observables registered on the ensemble
+    datasets (lqcd.obs.*): flow scales, lattice spacing per scheme, hadron
+    masses, as value(stat). Ensembles without observables are left out."""
+    cols = [("t0/a^2", "lqcd.obs.t0"), ("w0/a", "lqcd.obs.w0"), ("a [fm] (t0)", "lqcd.obs.a.t0"),
+            ("a [fm] (w0)", "lqcd.obs.a.w0"), ("a m_pi", "lqcd.obs.mpi"), ("a M_N", "lqcd.obs.mN"),
+            ("m_pi/M_N", "lqcd.obs.mpi_over_mN")]
+
+    def cell(md: dict, key: str) -> str:
+        v, s = md.get(f"{key}.value"), md.get(f"{key}.stat")
+        if not isinstance(v, (int, float)):
+            return ""
+        if not isinstance(s, (int, float)) or s <= 0:
+            return f"{v:g}"
+        # value(stat) at the precision the stat was given with: 0.3042(1), 3.4821(43), 0.077565(48)
+        digits = max(0, -Decimal(str(s)).normalize().as_tuple().exponent)
+        return f"{v:.{digits}f}({round(s * 10 ** digits):d})"
+
+    rows = []
+    for d in client.list_datasets(namespace_pattern=ns):
+        md = (client.get_dataset(f"{d['namespace']}:{d['name']}") or {}).get("metadata") or {}
+        if md.get("lqcd.artifact.kind") == "gauge_ensemble" and md.get("lqcd.obs.list"):
+            rows.append((d["name"], [cell(md, k) for _, k in cols]))
+    lines = ["| ensemble | " + " | ".join(c for c, _ in cols) + " |", "|---|" + "---|" * len(cols)]
+    for name, cells in sorted(rows):
+        lines.append(f"| `{name}` | " + " | ".join(cells) + " |")
+    lines.append(f"\n{len(rows)} ensembles with registered observables (value(stat); lattice spacing also carries a "
+                 f"scale error, see lqcd.obs.a.<scheme>.scale_err). Namespace `{ns}`, {utcnow()[:10]}.")
     return "\n".join(lines)
 
 
@@ -218,6 +252,8 @@ def main() -> int:
     ap.add_argument("--summary", action="store_true",
                     help="print a Markdown table of the ensembles (Nf, streams, configurations; the README's table) and exit")
     ap.add_argument("--derived", action="store_true", help="with --summary: also list the derived datasets per ensemble")
+    ap.add_argument("--observables", action="store_true",
+                    help="print a Markdown table of the registered observables (t0, w0, a, m_pi, M_N) per ensemble and exit")
     ap.add_argument("--kind", help="lqcd.artifact.kind filter (gauge_config, hmc_input, hmc_log_archive)")
     ap.add_argument("--stream", help="lqcd.stream filter (main, a, b, ...)")
     ap.add_argument("--trajectory", type=int)
@@ -241,6 +277,9 @@ def main() -> int:
 
     if args.summary:
         print(summary_table(client, ns, with_derived=args.derived))
+        return 0
+    if args.observables:
+        print(observables_table(client, ns))
         return 0
     if args.list_ensembles:
         rows = list_ensembles(client, ns)
