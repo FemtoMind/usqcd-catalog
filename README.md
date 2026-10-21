@@ -264,9 +264,6 @@ propagator datasets).
 | `cl3_48_64_b6p3_m0p2050` | 3 | 0 | 0 | 0 |
 | `cl3_48_96_b6p5_m0p1788` | 3 | 1 | 816 | 4.6 TB |
 
-17 ensembles, 80197 configurations, 378.8 TB; 18 derived datasets, 76891 records, 6.1 PB. Namespace `lqcd`, 2026-10-20.
-
-The cl3 datasets carry the H-dibaryon analysis observables (t0, w0, pion
-and nucleon masses, lattice spacing). Not yet catalogued: correlators, and
-checksums (which need a copy on FDP). The cl21 ensembles are also catalogued
-by JLab; reconciling the two is `docs/open_questions.md` item 10.
+17 ensembles, 80197 configurations, 378.8 TB
+18 derived datasets, 76891 records, 6.1 PB
+Namespace `lqcd`, 2026-10-20.
