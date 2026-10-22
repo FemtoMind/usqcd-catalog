@@ -263,8 +263,8 @@ action parameter, say), the script says so; rebuild and declare with
 
 Derived datasets are the propagator building blocks computed on an
 ensemble's configurations: sparse propagators, both timeslice-to-all and
-all-to-all, the latter being the input for matrix elements, meson fields
-and multi-hadron contractions. Each is its own dataset,
+all-to-all, distillation preambulators, etc.
+Each is its own dataset,
 `lqcd:<ensemble>_<product>`, whose records point back at the configuration
 they were computed on. Correlators and other measurement-level data are out
 of scope for this catalog.
