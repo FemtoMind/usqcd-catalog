@@ -51,11 +51,18 @@ actions (where xi and nu enter) or non-Wilson actions.
 | `lqcd.artifact.kind` | `"gauge_ensemble"` |
 | `lqcd.ensemble` | ensemble name, same as the dataset name |
 | `lqcd.collaboration`, `lqcd.generated_by`, `lqcd.machine`, `lqcd.code`, `lqcd.year` | provenance |
-| `lqcd.streams` | list of stream labels, e.g. `["main","a","b","c"]` |
-| `lqcd.n_streams`, `lqcd.n_configs` | counts at catalog time (`n_configs` counts single-config records only) |
+| `lqcd.stream_labels` | the stream labels, e.g. `["main","a","b","c"]`, including registered streams with no files yet; merged across writers, so its order carries no meaning |
+| `lqcd.streams.<label>.dir` | the stream's directory under the storage root; one key set per stream (registry, see `docs/registry.md`) |
+| `lqcd.streams.<label>.parent_stream`, `.parent_trajectory` | branch point, when known |
+| `lqcd.streams.<label>.registered_by`, `.registered_at` | the account that registered the stream, and when |
+| `lqcd.streams.<label>.note`, `.exclude` | optional free text; regexes of files in the directory that are not this stream's |
+| `lqcd.n_streams`, `lqcd.n_configs` | counts at catalog time: streams with catalogued files, configurations (`n_configs` counts single-config records and indexed or `trajectory_spacing`-counted archives) |
 | `lqcd.n_config_archives` | present when configs are stored as multi-config tar archives |
 | `lqcd.stream_summary` | list of strings `"<stream>: N configs, traj lo-hi"` |
-| `lqcd.catalog.schema_version` | `1` |
+| `lqcd.catalog.schema_version` | `2` (registry fields present) |
+| `lqcd.catalog.source` | the full description as JSON (physics, observables, file rules, provenance) minus the streams, from which `sync_registry.py` regenerates `ensembles/<name>.toml` |
+| `lqcd.catalog.revision` | `"<UTC time>/<account>"`, new whenever the registry part of the record changes; writers refuse a local copy synced at an older revision |
+| `lqcd.catalog.inherits_streams` | `true` on a derived dataset that takes its streams from the parent |
 | `lqcd.catalog.updated_at` | ISO timestamp of the last `build_records.py` |
 | `lqcd.<physics>` | everything from the ensemble TOML `[lqcd]` table, flattened (below) |
 

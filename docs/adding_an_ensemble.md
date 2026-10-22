@@ -1,12 +1,25 @@
 # Adding an ensemble
 
-Everything an ensemble needs is one TOML description file in `ensembles/`.
-The scripts never need editing for a new ensemble; if they do, that is a bug
-in the template, please report it.
+Everything an ensemble needs is one TOML description, registered once in
+the catalog, which is the registry (`docs/registry.md`). The scripts never
+need editing for a new ensemble; if they do, that is a bug in the template,
+please report it.
 
-## 1. Write `ensembles/<name>.toml`
+## 1. Write a description and register it
 
-Copy `ensembles/cl3_32_64_b6p5_m0p1788.toml` and edit. The file has four
+Copy `templates/ensemble.toml` (or, for a fuller worked example, any file in
+`ensembles/`), edit it, then
+
+```
+python3 scripts/register_ensemble.py my_ensemble.toml --dry-run   # every check, nothing written
+python3 scripts/register_ensemble.py my_ensemble.toml
+```
+
+The name must be new (names are permanent; an existing one is refused with
+who registered it). The `#` comments become `[ensemble] provenance`, so say
+where each number came from. Registration writes the dataset record and
+generates `ensembles/<name>.toml` from it; that snapshot is the copy to keep
+and build from, your input file is no longer needed. The file has four
 tables; only the first is required.
 
 **Why TOML.** The description is a hand-written
@@ -126,9 +139,11 @@ description = "Gauge configuration in SciDAC/ILDG LIME format."
 
 ## Derived datasets (propagators, correlators)
 
-A product computed on an ensemble gets its own description and dataset,
-`derived_datasets/<ens>_<product>.toml` (a separate registry from
-`ensembles/`, which holds only gauge ensembles), with
+A product computed on an ensemble gets its own registry entry and dataset,
+snapshot in `derived_datasets/<ens>_<product>.toml` (separate from
+`ensembles/`, which holds only gauge ensembles). Start from
+`templates/derived_dataset.toml` and register it with `register_ensemble.py`
+like an ensemble; its parent must already be registered. The description has
 
 ```toml
 [ensemble]
@@ -215,27 +230,38 @@ python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json   # m
 
 ## 4. Adding a stream later
 
-A new Markov chain stream is one more `[streams.<label>]` table in the
-ensemble's description (`dir`, plus `parent_stream` / `parent_trajectory`
-if the branch point is known); the `[[files]]` rules apply to every stream.
-Then re-run the inventory for the ensemble and build, declare, diff as
-usual. `declare_records.py` declares only the records that are not in the
-namespace yet, so the existing streams are untouched, and when new files
-land in an existing dataset it also merges the dataset record (stream list,
-configuration count, per-stream summary). A stream with a different storage
-layout additionally needs its own `[[files]]` rule, like a new ensemble
-would.
+No file editing:
+
+```
+python3 scripts/add_stream.py --ensemble <name> --stream <label> [--dir D] \
+    [--parent-stream main --parent-trajectory 1000] [--note "..."] [--dry-run]
+```
+
+It refuses an unknown ensemble, an existing label (labels are permanent),
+a directory another stream already uses, and an ensemble registered by
+someone else unless `--force`. The stream becomes `lqcd.streams.<label>.*`
+keys on the dataset record and `ensembles/<name>.toml` is regenerated; then
+inventory, build, declare, diff as in section 3. `declare_records.py`
+declares only records not yet in the namespace, so existing streams are
+untouched, and it refreshes the dataset record's counts. A stream with a
+different storage layout also needs its own `[[files]]` rule, which is a
+change to the description (section 5).
 
 ## 5. Changing metadata later
 
-Edit the TOML, rebuild, then
-
 ```
-python3 scripts/declare_records.py work/<name>/records.json --update-existing
+python3 scripts/sync_registry.py --ensemble <name>             # start from the catalog's current state
+$EDITOR ensembles/<name>.toml                                   # physics, observables, text, file rules
+python3 scripts/update_ensemble.py ensembles/<name>.toml [--dry-run]
 ```
 
-which merges the new values onto every existing record (server-stamped
-fields are untouched) and re-runs the diff.
+`update_ensemble.py` refuses if someone changed the entry since your sync,
+refuses stream additions or removals (use `add_stream.py`; labels are
+permanent), and says when the change also affects file records (ensemble
+physics is copied onto every file); then rebuild and run
+`declare_records.py work/<name>/records.json --update-existing`, which
+merges the new values onto every existing record (server-stamped fields are
+untouched).
 
 ## Catalog file names
 

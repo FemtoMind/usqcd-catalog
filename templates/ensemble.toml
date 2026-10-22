@@ -1,0 +1,55 @@
+# Template for registering a NEW gauge ensemble:
+#     cp templates/ensemble.toml my_ensemble.toml   # edit, then
+#     python3 scripts/register_ensemble.py my_ensemble.toml --dry-run
+#     python3 scripts/register_ensemble.py my_ensemble.toml
+# Everything written in '#' comments like these is kept: it becomes
+# [ensemble] provenance in the catalog, so say where your numbers came from
+# (which input file, which code version). Only [ensemble] name is required.
+# Field meanings: docs/adding_an_ensemble.md and docs/schema.md.
+
+[ensemble]
+name = "cl3_32_64_b6p5_m0p1788_example"      # permanent once registered
+display_name = "cl3 32^3x64 beta=6.5 m=-0.1788"
+collaboration = "NPLQCD"
+generated_by = "who ran the HMC"
+code = "Chroma hmc 3.40.0"
+storage = "nersc_hpss"                       # a [storage.*] key in catalog.toml
+description = """\
+One paragraph a physicist would want to read: action, volume, couplings, \
+number of streams, how often configurations were saved and in what format."""
+
+[lqcd]
+nflavors = 3
+beta = 6.5
+Nx = 32
+Ny = 32
+Nz = 32
+Nt = 64
+volume = [32, 32, 32, 64]
+
+[lqcd.action]
+gauge = "LW_TREE"
+fermion = "clover"
+csw = 1.170082389372972
+anisotropic = false
+
+[lqcd.mass]                                  # or [lqcd.kappa]; the other is derived
+light = -0.1788
+strange = -0.1788
+
+[lqcd.hmc]
+tau0 = 1.414
+save_interval = 10
+
+# One table per Markov chain stream. Labels are permanent. More streams are
+# added later with scripts/add_stream.py, not by editing a file.
+[streams.main]
+dir = "cl3_32_64_b6p5_m0p1788_example"       # directory under the storage root
+
+# How file names map to records. Omit [[files]] entirely to use the default
+# NPLQCD/Chroma layout rules (cfgs/*_cfg_<N>.lime, restart XML, log tarballs).
+[[files]]
+pattern = '^cfgs/.+_cfg_(?P<trajectory>\d+)\.lime$'
+kind = "gauge_config"
+format = "application/x-lime"
+description = "Gauge configuration in SciDAC/ILDG LIME format."

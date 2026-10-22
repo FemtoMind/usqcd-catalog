@@ -21,6 +21,15 @@ Behaviour, in order:
      their metadata is merged (update_file, replace=False), so FNAL-stamped
      fields (fn.locations, AmSC.common.fqn, ...) survive.
 
+Guards (the catalog is the ensemble registry, shared by every group):
+  * refuses a record whose registry schema is newer than these scripts;
+  * refuses to touch an ensemble, or a stream, registered by another user
+    unless --force (and says who registered it);
+  * refuses if the catalog's registry entry changed since your snapshot was
+    synced (someone else added a stream, say): run sync_registry.py, rebuild,
+    re-run. Stream labels are merged with what is in the catalog, never shrunk.
+After a write the local snapshot is regenerated from the catalog.
+
 Idempotent: re-running after a partial failure declares only what is missing.
 Writes work/<ensemble>/declare_<timestamp>.json with what was done.
 """
@@ -37,6 +46,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from catalog_common import (  # noqa: E402
     human_bytes, load_catalog_config, metacat_client, read_json, utcnow, write_json,
 )
+from registry import (  # noqa: E402
+    check_owner, check_revision, check_schema, check_stream_owner, merged_labels, new_revision,
+)
+from sync_registry import sync_one  # noqa: E402
 
 
 def existing_names(client, namespace: str, names: list[str]) -> set[str]:
@@ -84,9 +97,40 @@ def local_checks(files: list[dict]) -> list[str]:
     return errors
 
 
+REGISTRY_KEYS = ("lqcd.catalog.source", "lqcd.catalog.inherits_streams", "lqcd.stream_labels")
+
+
+def registry_part(md: dict) -> dict:
+    return {k: v for k, v in md.items() if k in REGISTRY_KEYS or k.startswith("lqcd.streams.")}
+
+
+def prepare_dataset_metadata(local: dict, remote: dict | None, user: str) -> tuple[dict, bool]:
+    """The dataset metadata to write: the local record, with stream labels
+    merged (never shrunk), registered_by/at stamped on streams that lack them,
+    and a new registry revision only when the registry part changes.
+    Returns (metadata, registry_changed)."""
+    remote = remote or {}
+    md = dict(local)
+    md["lqcd.stream_labels"] = merged_labels(remote.get("lqcd.stream_labels"), local.get("lqcd.stream_labels", []))
+    # lqcd.n_streams stays as built: streams with catalogued files, not registered labels
+    now = utcnow()
+    labels = {k.split(".")[2] for k in md if k.startswith("lqcd.streams.") and k.endswith(".dir")}
+    for label in labels:
+        for field, value in (("registered_by", user), ("registered_at", now)):
+            key = f"lqcd.streams.{label}.{field}"
+            if key not in md:
+                md[key] = remote.get(key, value)
+    changed = registry_part(md) != registry_part(remote)
+    md["lqcd.catalog.revision"] = new_revision(user) if changed else remote.get("lqcd.catalog.revision", new_revision(user))
+    return md, changed
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("records_json")
+    ap.add_argument("--force", action="store_true",
+                    help="write even if the ensemble or a stream was registered by someone else, or if the catalog "
+                         "changed since your local copy was synced")
     ap.add_argument("--config", help="site config (default: catalog.toml in repo root)")
     ap.add_argument("--dry-run", action="store_true", help="validate on the server, declare nothing")
     ap.add_argument("--update-existing", action="store_true", help="merge metadata into already-declared files and the dataset")
@@ -102,23 +146,37 @@ def main() -> int:
     ds_did = rec["dataset"]["did"]
     files = rec["files"]
     client = metacat_client(cfg, need_auth=True)
+    user = client.auth_info()[0]
+    name = ds_did.split(":", 1)[1]
 
     report = {"started_at": utcnow(), "records_json": str(Path(args.records_json).resolve()),
               "dataset": ds_did, "dry_run": args.dry_run, "update_existing": args.update_existing}
 
-    # ---- dataset
+    # ---- guards: schema version, ownership, stale local copy
     ds = client.get_dataset(ds_did)
+    remote_md = (ds or {}).get("metadata") or {}
+    if ds is not None:
+        check_schema(remote_md, ds_did)
+        check_owner(ds, user, args.force, ds_did)
+        check_revision(remote_md, rec.get("registry_revision"), args.force, ds_did, name)
+        touched = sorted({f["metadata"].get("lqcd.stream") for f in files if f["metadata"].get("lqcd.stream")})
+        check_stream_owner(remote_md, touched, user, args.force, ds_did)
+    ds_md, registry_changed = prepare_dataset_metadata(rec["dataset"]["metadata"], remote_md, user)
+    wrote_dataset = False
+
+    # ---- dataset
     if ds is None:
         if args.dry_run:
             print(f"[dry-run] would create dataset {ds_did}")
         else:
-            client.create_dataset(ds_did, metadata=rec["dataset"]["metadata"],
-                                  description=rec["dataset"]["metadata"].get("AmSC.common.display_name", ""))
+            client.create_dataset(ds_did, metadata=ds_md, description=ds_md.get("AmSC.common.display_name", ""))
             print(f"created dataset {ds_did}")
+            wrote_dataset = True
         report["dataset_action"] = "create"
     elif args.update_existing and not args.dry_run:
-        client.update_dataset(ds_did, metadata=rec["dataset"]["metadata"], mode="update")
-        print(f"updated dataset metadata {ds_did}")
+        client.update_dataset(ds_did, metadata=ds_md, mode="update")
+        print(f"updated dataset metadata {ds_did}" + (" (registry changed: new revision)" if registry_changed else ""))
+        wrote_dataset = True
         report["dataset_action"] = "update"
     else:
         print(f"dataset {ds_did} exists ({ds.get('file_count', '?')} files)")
@@ -129,6 +187,8 @@ def main() -> int:
                        "n_validated": 0, "n_updated": 0, "errors": []})
         write_json(Path(args.records_json).parent / f"declare_{time.strftime('%Y%m%dT%H%M%S')}.json", report)
         print("dataset-only: file records not touched")
+        if wrote_dataset:
+            after_write(client, ns, name, args.records_json, rec, ds_md)
         return 0
 
     # ---- split new / existing
@@ -171,9 +231,10 @@ def main() -> int:
     # metadata too; without this, only --update-existing would refresh it.
     if declared and ds is not None and not args.dry_run and not args.update_existing:
         try:
-            client.update_dataset(ds_did, metadata=rec["dataset"]["metadata"], mode="update")
+            client.update_dataset(ds_did, metadata=ds_md, mode="update")
             print(f"refreshed dataset metadata {ds_did} (streams, counts)")
             report["dataset_action"] = "refresh"
+            wrote_dataset = True
         except Exception as e:
             errors.append(f"dataset refresh: {type(e).__name__}: {e}")
             print(f"  ERROR dataset refresh: {e}", file=sys.stderr)
@@ -205,7 +266,23 @@ def main() -> int:
     outp = Path(args.records_json).parent / f"declare_{time.strftime('%Y%m%dT%H%M%S')}.json"
     write_json(outp, report)
     print(json.dumps({k: v for k, v in report.items() if k not in ("records_json",)}, indent=1))
+    if wrote_dataset:
+        after_write(client, ns, name, args.records_json, rec, ds_md)
     return 1 if errors else 0
+
+
+def after_write(client, ns: str, name: str, records_json: str, rec: dict, ds_md: dict) -> None:
+    """Keep the local side current after a write: records.json now matches the
+    revision we wrote (so the next declare is not refused as stale), and the
+    snapshot is regenerated from the catalog."""
+    rec["registry_revision"] = ds_md.get("lqcd.catalog.revision")
+    write_json(Path(records_json), rec)
+    try:
+        state = sync_one(client, ns, name, quiet=True)
+        if state == "written":
+            print(f"synced the local snapshot of {name} from the catalog (commit it when convenient)")
+    except Exception as e:
+        sys.stderr.write(f"[warn] could not sync the local snapshot: {e}\n")
 
 
 if __name__ == "__main__":

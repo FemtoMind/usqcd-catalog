@@ -3,23 +3,31 @@
 Scripts for cataloging and discovering USQCD lattice-QCD data — gauge-field ensembles and reusable building blocks for quark propagators —  in the AmSC Fermi Data Platform MetaCat catalog.
 
 Discovery is one script and needs no account (`retrieve_records.py`, below).
-Cataloging is a hand-written description of the ensemble, an inventory of
-its files, and three small scripts with JSON between them, so every step
-can be inspected and re-run on its own:
+The catalog itself is the ensemble registry: each ensemble's dataset record
+holds its physics, streams, file rules and provenance, and
+`ensembles/*.toml` are snapshots generated from it. Registering an ensemble
+or a stream needs catalog write access, not write access to this repository.
+Cataloging files is an inventory and three small scripts with JSON between
+them, so every step can be inspected and re-run on its own:
 
 ```
-ensembles/<name>.toml  (hand-written: physics, streams, file rules)
+register_ensemble.py my.toml   (once per ensemble)   add_stream.py --ensemble X --stream Y   (once per stream)
+        │                                                    │
+        ▼                                                    ▼
+   catalog registry entry  ──── sync_registry.py ────►  ensembles/<name>.toml (snapshot)
         │
-        ▼
 1. an inventory of the files     ──►  work/<name>/inventory.json   (NERSC HPSS: scripts/hpss_inventory.py)
-2. scripts/build_records.py      TOML + inventory ──►  work/<name>/records.json
-3. scripts/declare_records.py    records.json ──► MetaCat   (the only write step)
+2. scripts/build_records.py      snapshot + inventory ──►  work/<name>/records.json
+3. scripts/declare_records.py    records.json ──► MetaCat
 4. scripts/retrieve_records.py   MetaCat ──► discovery, and --diff records.json for the round trip
 ```
 
 Site-specific values (catalog URL, namespace, storage Globus UUIDs, archive
-roots) live in `catalog.toml`. Ensemble-specific values live in
-`ensembles/<name>.toml`. Nothing in `scripts/` hard-codes either.
+roots) live in `catalog.toml`. Nothing in `scripts/` hard-codes either.
+Several groups writing to the same registry is covered in
+[docs/registry.md](docs/registry.md): names and stream labels are permanent
+and unique, other groups' entries need `--force`, writers refuse a stale
+local copy, and git conflicts in snapshots are resolved by re-syncing.
 
 ## Where to see the LQCD metadata
 
@@ -171,22 +179,22 @@ browser routes are in `docs/browsing.md`, and the field names in
 
 ## Adding an ensemble
 
-Cataloging is a hand-written description, an inventory of the files, and
-three scripts with JSON between them, so every stage can be inspected and
-re-run on its own:
-
 ```
-python3 scripts/build_records.py    ensembles/<name>.toml                   # TOML + inventory -> work/<name>/records.json (offline)
-python3 scripts/declare_records.py  work/<name>/records.json                # the only write to MetaCat
+python3 scripts/register_ensemble.py my_ensemble.toml                       # once: the registry entry + ensembles/<name>.toml
+python3 scripts/build_records.py    ensembles/<name>.toml                   # snapshot + inventory -> work/<name>/records.json (offline)
+python3 scripts/declare_records.py  work/<name>/records.json                # file records into MetaCat
 python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json  # round trip; exit 0 when the catalog matches
 ```
 
-1. **Describe the ensemble** in `ensembles/<name>.toml`: copy
-   `ensembles/cl3_32_64_b6p5_m0p1788.toml` and change `[ensemble]`, `[lqcd]`
-   and `[streams.*]`. Take numbers from the HMC input, not from memory
-   (`scripts/lime_hmc_params.py` reads Chroma's input back out of a LIME
-   header). If the stream directories have a different layout, adjust the
-   `[[files]]` regexes; `build_records.py` prints what it could not classify.
+1. **Register the ensemble**: copy `templates/ensemble.toml`, fill in
+   `[ensemble]`, `[lqcd]` and `[streams.*]`, and run `register_ensemble.py`
+   on it (`--dry-run` first). Take numbers from the HMC input, not from
+   memory (`scripts/lime_hmc_params.py` reads Chroma's input back out of a
+   LIME header); comments in the file are kept as provenance. If the stream
+   directories have a different layout, adjust the `[[files]]` regexes;
+   `build_records.py` prints what it could not classify. This is the only
+   time a description is written by hand: the registered copy is
+   `ensembles/<name>.toml`, generated from the catalog.
 2. **List the files** into `work/<name>/inventory.json`: one entry per file
    with its path, size, date and owner, grouped by stream (format in
    `docs/adding_an_ensemble.md`). The worked example is NERSC HPSS, where
@@ -205,10 +213,16 @@ python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json  # ro
    `--diff` lists what is missing, extra or different, and is the test that
    the catalog says what you meant.
 
-Groups without write access stop after the build and hand `records.json` to
-someone who has it (see Authentication). Derived products (propagators,
-correlators) get their own description in `derived_datasets/` with
-`parent = "<ensemble>"`; see `docs/adding_an_ensemble.md`.
+**A new stream** of a registered ensemble needs no file editing:
+`add_stream.py --ensemble <name> --stream <label> [--dir D] [--parent-stream S --parent-trajectory N]`,
+then inventory, build, declare, diff as above. **Changing** physics,
+observables or text: `sync_registry.py --ensemble <name>`, edit the
+snapshot, `update_ensemble.py ensembles/<name>.toml`. Derived products
+(propagators, correlators) are registered the same way from
+`templates/derived_dataset.toml` and live in `derived_datasets/`; see
+`docs/adding_an_ensemble.md`. Groups without catalog write access stop after
+the build and hand `records.json` to someone who has it (see
+Authentication).
 
 ## Layout
 
@@ -216,9 +230,11 @@ correlators) get their own description in `derived_datasets/` with
 catalog.toml            site config: catalog, namespace, storage collections, optional interpreter
 pyproject.toml          dependencies for `pip install -e .` (metacat-client; extras [transfer], [reduce])
 requirements.txt        the same list for `pip install -r`
-ensembles/<name>.toml   one per gauge ensemble (physics, streams, file rules)
-derived_datasets/       one per derived product (sparse propagator sets, ...), each naming its parent ensemble
-scripts/                the four catalog steps + catalog_common.py (+ attach_checksums.py,
+ensembles/<name>.toml   registry snapshot per gauge ensemble, generated by sync_registry.py (do not hand-edit)
+derived_datasets/       the same for derived products (sparse propagator sets, ...), each naming its parent
+templates/              starting points for register_ensemble.py (ensemble, derived dataset)
+scripts/                registry: register_ensemble, add_stream, update_ensemble, sync_registry (+ registry.py);
+                        the four catalog steps + catalog_common.py (+ attach_checksums.py,
                         lime_hmc_params.py to read HMC parameters out of a LIME header,
                         sprop_members.py to read what propagator archives hold from their htar
                         indexes, survey_listing.py to summarise a listing), the three data-movement
@@ -231,6 +247,7 @@ bin/htar_extract.sh     pull named members out of an htar archive;  bin/wait_job
 docs/authentication.md  accounts, tokens, Globus consents, step by step for a new user
 docs/schema.md          every field, what is required, mass/kappa convention
 docs/adding_an_ensemble.md
+docs/registry.md        the catalog as shared registry: collisions, ownership, stale copies, git conflicts
 docs/storage_and_transfer.md   Globus collections, HPSS, FDP backup plan, checksums
 docs/data_movement.md   select -> Globus transfer -> unpack workflow, with a worked example
 docs/correlator_reduction.md   read datasets out of htar archives in place (htar_members / reduce_corrs / merge_corrs)

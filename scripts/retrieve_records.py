@@ -117,7 +117,8 @@ def list_ensembles(client, ns: str) -> list[dict]:
             "ensemble": md.get("lqcd.ensemble"), "nflavors": md.get("lqcd.nflavors"),
             "action": md.get("lqcd.action.fermion"), "beta": md.get("lqcd.beta"),
             "volume": md.get("lqcd.volume"), "mass_light": md.get("lqcd.mass.light"),
-            "kappa_light": md.get("lqcd.kappa.light"), "streams": md.get("lqcd.streams"),
+            "kappa_light": md.get("lqcd.kappa.light"),
+            "streams": md.get("lqcd.stream_labels") or md.get("lqcd.streams"),
             "n_configs": md.get("lqcd.n_configs"), "display_name": md.get("AmSC.common.display_name"),
             "a_fm_t0": md.get("lqcd.obs.a.t0.value"), "a_mpi": md.get("lqcd.obs.mpi.value"),
         })
@@ -155,7 +156,8 @@ def summary_table(client, ns: str, with_derived: bool = False) -> str:
         total_bytes += gauge[name]["bytes"]
         n_cfg = md.get("lqcd.n_configs") or 0
         total_cfgs += n_cfg
-        streams = md.get("lqcd.streams") or []
+        streams = md.get("lqcd.stream_labels") or md.get("lqcd.streams") or []
+        n_streams = md.get("lqcd.n_streams", len(streams))      # streams with catalogued data
         flav = md.get("lqcd.flavor_structure") or ""
         nf = "2+1" if flav.startswith("2+1") else str(md.get("lqcd.nflavors") or "")
         n_arch = md.get("lqcd.n_config_archives") or 0
@@ -164,7 +166,7 @@ def summary_table(client, ns: str, with_derived: bool = False) -> str:
         # the configurations have no catalogued location yet.
         cfg_cell = str(n_cfg) if n_cfg else (f"{n_arch} archives" if n_arch else "0")
         size = human_bytes(gauge[name]["bytes"]) if gauge[name]["bytes"] else "0"
-        lines.append(f"| `{name}` | {nf} | {len(streams)} | {cfg_cell} | {size} |")
+        lines.append(f"| `{name}` | {nf} | {n_streams} | {cfg_cell} | {size} |")
     n_derived = sum(len(v) for v in derived.values())
     n_records = sum(n for v in derived.values() for _, _, n, _ in v)
     d_bytes = sum(b for v in derived.values() for _, _, _, b in v)
@@ -237,6 +239,11 @@ def compare(expected: dict, got: dict) -> dict:
         if k.startswith(IGNORED_PREFIXES):
             continue
         gv = got["dataset"]["metadata"].get(k, "<absent>")
+        if k == "lqcd.stream_labels" and isinstance(gv, list) and isinstance(v, list):
+            # merged across writers, never rewritten: order carries no meaning
+            if set(gv) != set(v):
+                ds_diffs[k] = [v, gv]
+            continue
         if gv != v:
             ds_diffs[k] = [v, gv]
     return {"missing": missing, "extra": extra, "mismatched": mismatched, "dataset": ds_diffs,

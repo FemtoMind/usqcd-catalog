@@ -1,0 +1,32 @@
+# Template for registering a NEW derived dataset (propagators, correlators, ...)
+# computed on a registered ensemble:
+#     cp templates/derived_dataset.toml my_props.toml   # edit, then
+#     python3 scripts/register_ensemble.py my_props.toml --dry-run
+#     python3 scripts/register_ensemble.py my_props.toml
+# Comments are kept as provenance. The dataset inherits the parent's physics
+# and streams; every record points back at the configuration it was computed
+# on through lqcd.parent.*. Worked examples: derived_datasets/*.toml.
+
+[ensemble]
+name = "cl3_48_96_b6p5_m0p1788_example_props"   # <parent>_<product>; permanent once registered
+parent = "cl3_48_96_b6p5_m0p1788"               # must already be registered
+kind = "sparse_propagator_set"
+name_style = "path"                             # catalog names "<stream dir>/<path>"
+description = """\
+What was computed, with which sources, smearing and solver, and how it is \
+stored (one archive per configuration and source timeslice, ...)."""
+
+# Facts about the product, flattened to lqcd.prop.* on every record.
+[derived.prop]
+kind = "sparse_propagator"
+topology = "timeslice-to-all"
+smearing_kind = "GAUGE_INV_GAUSSIAN"
+smearing_width = 6.0
+smearing_steps = 150
+
+[[files]]
+pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_timeslice_to_all"
+format = "application/x-tar"
+parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
+description = "Archive of sparse propagators for one configuration and source timeslice."

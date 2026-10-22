@@ -48,11 +48,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from catalog_common import (  # noqa: E402
     classify, complete_mass_kappa, dataset_did, flatten, human_bytes, load_catalog_config,
-    load_ensemble, read_json, storage_for, utcnow, work_dir, write_json,
+    load_ensemble, load_toml, read_json, storage_for, utcnow, work_dir, write_json,
 )
+from registry import registry_fields  # noqa: E402
 
 
-def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict) -> dict:
+def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict, raw: dict | None = None) -> dict:
+    """Dataset-level metadata. `raw` is the description as written (before
+    defaults); its registry fields (lqcd.catalog.source, lqcd.streams.<label>.*)
+    make the dataset record the registry entry for the ensemble."""
     e = ens["ensemble"]
     parent = e.get("parent")
     md = {
@@ -67,12 +71,12 @@ def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict) -> dict:
         "lqcd.machine": e.get("machine", ""),
         "lqcd.code": e.get("code", ""),
         "lqcd.year": e.get("year", ""),
-        "lqcd.streams": list(ens["streams"].keys()),
+        "lqcd.stream_labels": list(ens["streams"].keys()),
         "lqcd.n_streams": len(ens["streams"]),
         "lqcd.n_configs": sum(s["n_configs"] for s in streams_summary.values()),
-        "lqcd.catalog.schema_version": 1,
         "lqcd.catalog.updated_at": utcnow(),
     }
+    md.update(registry_fields(raw if raw is not None else {"ensemble": e}))
     md.update(flatten(ens["lqcd"], "lqcd"))
     complete_mass_kappa(md)
     if parent:
@@ -114,7 +118,8 @@ def physics_summary(ens_md: dict) -> str:
 # onto every file record (file records get the physics keys, lqcd.beta etc.).
 # Ensemble-level fields that stay on the dataset record and are NOT copied onto
 # every file (counts, stream bookkeeping, and the downstream observables).
-DATASET_ONLY_PREFIXES = ("lqcd.n_", "lqcd.streams", "lqcd.stream_summary", "lqcd.catalog.", "lqcd.obs.")
+DATASET_ONLY_PREFIXES = ("lqcd.n_", "lqcd.streams.", "lqcd.stream_labels", "lqcd.stream_summary",
+                         "lqcd.catalog.", "lqcd.obs.")
 # FDP naming rule: letters, digits, "-", ".", "_" and "/" only.
 NAME_CHARS = "A-Z a-z 0-9 - . _ /"
 NAME_OK = re.compile(r"^[A-Za-z0-9._/-]+$")
@@ -350,11 +355,24 @@ def main() -> int:
     for label, dir_label, *_ in classified:
         if label not in ens["streams"]:
             ens["streams"][label] = dict(ens["streams"][dir_label], derived_from_dir=dir_label)
+    # A registered stream with no files yet (data not located, or not yet
+    # inventoried) stays in lqcd.stream_labels: it exists in the registry. It
+    # is not counted in lqcd.n_streams, which counts streams with data. A
+    # directory entry whose files carry other labels (a shared directory) is
+    # not a stream label itself.
+    feeders = {st.get("derived_from_dir") for st in ens["streams"].values()}
+    registered_empty = [s for s in ens["streams"] if s not in per_stream and s not in feeders]
     for label in [s for s in ens["streams"] if s not in per_stream]:
-        sys.stderr.write(f"[warn] stream {label!r} has no matching files; not listed on the dataset\n")
+        if label in registered_empty:
+            sys.stderr.write(f"[info] stream {label!r} has no matching files yet\n")
         del ens["streams"][label]
 
-    ens_md = ensemble_metadata(ens, cfg, streams_summary)
+    ens_md = ensemble_metadata(ens, cfg, streams_summary, raw=load_toml(args.ensemble_toml))
+    raw_order = list((load_toml(args.ensemble_toml).get("streams") or {}))
+    with_data = ens_md["lqcd.stream_labels"]
+    ens_md["lqcd.stream_labels"] = (
+        [l for l in raw_order if l in with_data or l in registered_empty]
+        + [l for l in with_data if l not in raw_order])
     if any(v["n_config_archives"] for v in streams_summary.values()):
         ens_md["lqcd.n_config_archives"] = sum(v["n_config_archives"] for v in streams_summary.values())
     ens_md["lqcd.stream_summary"] = [
@@ -405,6 +423,9 @@ def main() -> int:
         "generated_at": utcnow(),
         "ensemble_toml": str(Path(args.ensemble_toml).resolve()),
         "inventory_generated_at": inv["generated_at"],
+        # The registry revision this description was synced at; declare_records
+        # refuses to write if the catalog has moved on since (another writer).
+        "registry_revision": (load_toml(args.ensemble_toml).get("catalog") or {}).get("revision"),
         "dataset": {"did": dataset_did(cfg, name), "metadata": ens_md},
         "summary": {
             "n_files": len(records),

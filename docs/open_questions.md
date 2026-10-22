@@ -79,9 +79,10 @@ convention hardens. Comments as GitHub issues are easiest.
     header records where every number came from), nested tables that map
     one-to-one onto the dotted catalog keys, and regexes without escaped
     backslashes. JSON and YAML were briefly accepted as alternatives and
-    dropped again: one syntax is easier to edit and to validate, and
-    routine changes (adding a stream) should go through a script rather
-    than hand edits.
+    dropped again: one syntax is easier to edit and to validate. Since the
+    catalog became the registry (`docs/registry.md`), a TOML file is written
+    by hand only once per ensemble; routine changes such as adding a stream
+    go through scripts, and the files in `ensembles/` are generated.
 
 14. **Unrecorded smearing steps.** Where no run XML survives (cl21_64_128,
     cl21_72_192, the Frontier all-to-all runs) the step count for the
