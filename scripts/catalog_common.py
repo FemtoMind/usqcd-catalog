@@ -32,6 +32,11 @@ DEFAULT_CATALOG_CONFIG = REPO_ROOT / "catalog.toml"
 
 # ----------------------------------------------------------------- config I/O
 def load_toml(path: str | os.PathLike) -> dict:
+    """Load a TOML file, or a JSON file with the same structure (.json): the
+    ensemble descriptions are plain nested tables, so either syntax works."""
+    if str(path).endswith(".json"):
+        with open(path) as f:
+            return json.load(f)
     with open(path, "rb") as f:
         return tomllib.load(f)
 
@@ -75,11 +80,11 @@ def load_ensemble(path: str | os.PathLike) -> dict:
     # otherwise, its streams, so its records are self-describing and point back.
     parent = ens["ensemble"].get("parent")
     if parent:
-        ppath = Path(path).resolve().parent / f"{parent}.toml"
-        if not ppath.exists():
-            ppath = REPO_ROOT / "ensembles" / f"{parent}.toml"
-        if not ppath.exists():
-            sys.exit(f"{path}: parent ensemble TOML not found: {parent}.toml")
+        candidates = [Path(path).resolve().parent / f"{parent}{ext}" for ext in (".toml", ".json")]
+        candidates += [REPO_ROOT / "ensembles" / f"{parent}{ext}" for ext in (".toml", ".json")]
+        ppath = next((p for p in candidates if p.exists()), None)
+        if ppath is None:
+            sys.exit(f"{path}: parent ensemble description not found: {parent}.toml (or .json)")
         pens = load_toml(ppath)
         ens["_parent"] = pens
         ens.setdefault("lqcd", pens.get("lqcd", {}))

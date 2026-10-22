@@ -9,6 +9,18 @@ template, please report it.
 Copy `ensembles/cl3_32_64_b6p5_m0p1788.toml` and edit. The file has four
 tables; only the first is required.
 
+**Why TOML, and JSON if you prefer.** The description is a hand-written
+document, and the file header is where we keep the provenance ("beta and
+csw taken from restart_10000.xml of stream a"): TOML allows comments, JSON
+does not. TOML also writes nested tables as headings (`[lqcd.action]`),
+which flatten straight to the dotted catalog keys (`lqcd.action.csw`), and
+takes regexes as literal strings (`'^cfgs/.+_cfg_(?P<trajectory>\d+)\.lime$'`)
+without doubling every backslash. Nothing else depends on the syntax: the
+file is a nested dictionary, and `ensembles/<name>.json` with the same keys
+is accepted everywhere a `.toml` is (`[[files]]` becomes a `"files"` list,
+`[lqcd.action]` becomes `"lqcd": {"action": {...}}`). Everything the scripts
+*generate* (inventory, records, dumps) is JSON.
+
 ### `[ensemble]` (required: `name`)
 
 | key | meaning |

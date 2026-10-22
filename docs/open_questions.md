@@ -74,7 +74,15 @@ convention hardens. Comments as GitHub issues are easiest.
     archive *require* such an index-derived summary, or is the nominal
     rule-level metadata acceptable when the index is missing?
 
-13. **Unrecorded smearing steps.** Where no run XML survives (cl21_64_128,
+13. **TOML for the hand-written descriptions.** Several groups asked why
+    `ensembles/<name>.toml` is not JSON. The reasons are comments (the file
+    header records where every number came from), nested tables that map
+    one-to-one onto the dotted catalog keys, and regexes without escaped
+    backslashes; the content is a plain nested dictionary and a `.json`
+    file with the same structure is accepted in its place. Is that enough,
+    or should the repo ship the descriptions in both forms?
+
+14. **Unrecorded smearing steps.** Where no run XML survives (cl21_64_128,
     cl21_72_192, the Frontier all-to-all runs) the step count for the
     Gaussian smearing is stored as a string saying so, with the nearest
     verified production quoted. Better: a numeric field plus a separate
