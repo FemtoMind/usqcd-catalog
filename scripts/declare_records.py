@@ -14,7 +14,9 @@ Behaviour, in order:
      merges the dataset metadata otherwise.
   3. Splits the file records into "new" (not in the namespace) and "existing"
      (already declared). New files are declared in batches with declare_files();
-     --dry-run makes the server validate them without declaring.
+     --dry-run makes the server validate them without declaring. When new
+     files land in an existing dataset (a stream was added), the dataset
+     metadata (stream list, counts) is merged as well.
   4. Existing files are left alone unless --update-existing, in which case
      their metadata is merged (update_file, replace=False), so FNAL-stamped
      fields (fn.locations, AmSC.common.fqn, ...) survive.
@@ -163,6 +165,18 @@ def main() -> int:
             errors.append(msg)
             print(f"  ERROR {msg}", file=sys.stderr)
             break  # stop on first failure; re-run picks up where we left off
+
+    # New files in an existing dataset (a stream added, a directory that grew)
+    # change the dataset's stream list and counts, so merge the dataset
+    # metadata too; without this, only --update-existing would refresh it.
+    if declared and ds is not None and not args.dry_run and not args.update_existing:
+        try:
+            client.update_dataset(ds_did, metadata=rec["dataset"]["metadata"], mode="update")
+            print(f"refreshed dataset metadata {ds_did} (streams, counts)")
+            report["dataset_action"] = "refresh"
+        except Exception as e:
+            errors.append(f"dataset refresh: {type(e).__name__}: {e}")
+            print(f"  ERROR dataset refresh: {e}", file=sys.stderr)
 
     # ---- refresh existing
     updated = []

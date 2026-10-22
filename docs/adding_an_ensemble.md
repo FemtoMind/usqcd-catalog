@@ -1,15 +1,16 @@
 # Adding an ensemble
 
-Everything an ensemble needs is one TOML file in `ensembles/`. The scripts
-never need editing for a new ensemble; if they do, that is a bug in the
-template, please report it.
+Everything an ensemble needs is one description file in `ensembles/`, TOML
+by default (JSON or YAML with the same structure also work, see section 1).
+The scripts never need editing for a new ensemble; if they do, that is a bug
+in the template, please report it.
 
 ## 1. Write `ensembles/<name>.toml`
 
 Copy `ensembles/cl3_32_64_b6p5_m0p1788.toml` and edit. The file has four
 tables; only the first is required.
 
-**Why TOML, and JSON if you prefer.** The description is a hand-written
+**Why TOML, and JSON or YAML if you prefer.** The description is a hand-written
 document, and the file header is where we keep the provenance ("beta and
 csw taken from restart_10000.xml of stream a"): TOML allows comments, JSON
 does not. TOML also writes nested tables as headings (`[lqcd.action]`),
@@ -19,9 +20,10 @@ without doubling every backslash. Nothing else depends on the syntax: the
 file is a nested dictionary, and `ensembles/<name>.json` with the same keys
 is accepted everywhere a `.toml` is (`[[files]]` becomes a `"files"` list,
 `[lqcd.action]` becomes `"lqcd": {"action": {...}}`), and so is `.yaml` if
-PyYAML is installed. `docs/examples/` holds the cl3_48_96 description in
-all three forms for comparison. Everything the scripts *generate*
-(inventory, records, dumps) is JSON.
+PyYAML is installed (it is not a declared dependency). The same holds for
+the descriptions in `derived_datasets/`. `docs/examples/` holds the
+cl3_48_96_b6p5_m0p1788 description in all three forms for comparison.
+Everything the scripts *generate* (inventory, records, dumps) is JSON.
 
 ### `[ensemble]` (required: `name`)
 
@@ -165,7 +167,7 @@ the htar indexes once and build with them:
 ```
 sbatch bin/sprop_members_xfer.sh work/<parent>/inventory.json 'sparseprops.*/[0-9]+\.tar$' \
     work/<name>/members.json 6                      # xfer queue; ~1 s per archive, resumable
-python3 scripts/build_records.py ensembles/<name>.toml --archive-index work/<name>/members.json
+python3 scripts/build_records.py derived_datasets/<name>.toml --archive-index work/<name>/members.json
 ```
 
 Each indexed record then carries `lqcd.prop.tsrc_list`, `flavors`,
@@ -217,7 +219,20 @@ python3 scripts/declare_records.py work/<name>/records.json             # the re
 python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json   # must print OK
 ```
 
-## 4. Changing metadata later
+## 4. Adding a stream later
+
+A new Markov chain stream is one more `[streams.<label>]` table in the
+ensemble's description (`dir`, plus `parent_stream` / `parent_trajectory`
+if the branch point is known); the `[[files]]` rules apply to every stream.
+Then re-run the inventory for the ensemble and build, declare, diff as
+usual. `declare_records.py` declares only the records that are not in the
+namespace yet, so the existing streams are untouched, and when new files
+land in an existing dataset it also merges the dataset record (stream list,
+configuration count, per-stream summary). A stream with a different storage
+layout additionally needs its own `[[files]]` rule, like a new ensemble
+would.
+
+## 5. Changing metadata later
 
 Edit the TOML, rebuild, then
 

@@ -3,7 +3,10 @@
 The AmSC catalog validates only `AmSC.common.*`. Everything under `lqcd.*` is
 our convention; this document and `build_records.py` are its only enforcement.
 Field names are flat dotted paths so every value is usable in MQL
-(`lqcd.mass.light = -0.1788`, `lqcd.stream in ("a","b")`).
+(`lqcd.mass.light = -0.1788`, `lqcd.stream in ("a","b")`). The schema is
+this set of fields; the hand-written description in `ensembles/<name>.toml`
+(or the same nested structure as JSON or YAML, see adding_an_ensemble.md) is
+only the input format a group writes the values down in.
 
 ## What is required, what is optional
 
@@ -188,8 +191,9 @@ where the value came from.
 ## Derived datasets (propagators, correlators)
 
 A derived product is its own dataset, `lqcd:<ensemble>_<product>` (e.g.
-`lqcd:cl3_48_96_b6p5_m0p1788_sparseprops`), described by a TOML whose
-`[ensemble]` names `parent = "<ensemble>"`. It inherits the parent's `[lqcd]`
+`lqcd:cl3_48_96_b6p5_m0p1788_sparseprops`), described by its own file
+`derived_datasets/<ensemble>_<product>.toml` whose `[ensemble]` names
+`parent = "<ensemble>"`. It inherits the parent's `[lqcd]`
 physics and streams, so each record is self-describing, and every record
 points back at the configuration it was computed on:
 

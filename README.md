@@ -209,8 +209,8 @@ Groups without write access stop after the build and hand `records.json` to
 someone who has it (see Authentication). Derived products (propagators,
 correlators) get their own description in `derived_datasets/` with
 `parent = "<ensemble>"`; see `docs/adding_an_ensemble.md`. Descriptions are
-TOML by default; the same nested structure as `.json` or `.yaml` is accepted
-too (`docs/examples/` shows one ensemble in all three).
+TOML by default; the same nested structure as `.json` or `.yaml` (needs
+PyYAML) is accepted too (`docs/examples/` shows one ensemble in all three).
 
 ## Layout
 
