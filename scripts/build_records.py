@@ -9,8 +9,11 @@ Writes work/<ensemble>/records.json     (consumed by declare_records.py)
 
 records.json is the complete, reviewable statement of what will be put in the
 catalog: one dataset record for the ensemble and one file record per inventory
-entry that matches a [[files]] rule. Nothing is sent anywhere by this step, so
-it is safe to run, inspect, edit the TOML, and run again.
+entry that matches a [[files]] rule. Nothing is written to the catalog by
+this step, so it is safe to run, inspect and run again. For a registered
+ensemble it first refreshes ensembles/<name>.toml from the catalog (one
+anonymous read; --no-sync to stay offline), so records are built from the
+current registry entry.
 
 Record layout (what MetaCat's declare_files expects, plus our conventions):
 
@@ -93,6 +96,27 @@ def ensemble_metadata(ens: dict, cfg: dict, streams_summary: dict, raw: dict | N
         md.update(flatten(obs, "lqcd.obs"))
         md["lqcd.obs.list"] = [k for k, v in obs.items() if isinstance(v, dict)]
     return md
+
+
+def sync_snapshot_first(cfg: dict, toml_path: str) -> None:
+    """If toml_path is the registry snapshot of a registered dataset, refresh it
+    from the catalog (one anonymous read), so records are always built from
+    the current registry entry. A description that is not registered yet, or
+    that lives elsewhere, is left alone."""
+    from registry import snapshot_path
+    from sync_registry import sync_one
+    from catalog_common import metacat_client
+    p = Path(toml_path).resolve()
+    pre = load_toml(p)
+    name = (pre.get("ensemble") or {}).get("name")
+    if not name or p != snapshot_path(name, pre).resolve():
+        return
+    try:
+        state = sync_one(metacat_client(cfg, need_auth=False), cfg["metacat"]["namespace"], name, quiet=True)
+        if state == "written":
+            print(f"[sync] {p.parent.name}/{p.name} refreshed from the catalog")
+    except Exception as e:  # offline, or the catalog is down: build from the local copy
+        sys.stderr.write(f"[warn] could not refresh {p.name} from the catalog ({e}); building from the local copy\n")
 
 
 def physics_summary(ens_md: dict) -> str:
@@ -256,9 +280,13 @@ def main() -> int:
                          "member count when the archive name itself does not carry them")
     ap.add_argument("--checksums", metavar="JSON", help="optional {name: {alg: hex}} or {name: hex} to include")
     ap.add_argument("--checksum-algorithm", default="sha256", help="algorithm for bare-string --checksums values")
+    ap.add_argument("--no-sync", action="store_true",
+                    help="do not refresh the registry snapshot from the catalog first (fully offline)")
     args = ap.parse_args()
 
     cfg = load_catalog_config(args.config)
+    if not args.no_sync:
+        sync_snapshot_first(cfg, args.ensemble_toml)
     ens = load_ensemble(args.ensemble_toml)
     name = ens["ensemble"]["name"]
     storage = storage_for(cfg, ens)

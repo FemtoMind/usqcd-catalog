@@ -19,14 +19,15 @@ sync.
 | see what is registered | `retrieve_records.py --summary` | no |
 | new ensemble or derived dataset | `register_ensemble.py my.toml` (start from `templates/`) | once, by hand |
 | new stream of an ensemble | `add_stream.py --ensemble X --stream Y [--dir D]` | no |
-| change physics, observables, text | `sync_registry.py --ensemble X`, edit `ensembles/X.toml`, `update_ensemble.py ensembles/X.toml` | the snapshot |
+| add physics, observables, text | `update_ensemble.py --ensemble X --set KEY=VALUE` or `--merge FILE.toml` | no |
 | catalog files | inventory, `build_records.py`, `declare_records.py`, `retrieve_records.py --diff` | no |
-| refresh local snapshots | `sync_registry.py` (all) or `--ensemble X` | regenerated |
 
-Every writing script syncs the snapshot of the dataset it touches from the
-catalog before it checks anything and again after it writes, so a local
-checkout is current after every change. Commit the regenerated snapshot when
-convenient; nothing breaks if you don't.
+Nobody syncs snapshots by hand. Every script that writes refreshes the
+snapshot of the dataset it touches from the catalog, and `build_records.py`
+refreshes it before building, so records are always built from the current
+registry entry. Commit regenerated snapshots when convenient; nothing breaks
+if you don't. (`sync_registry.py` is what they call; run it with `--check`
+in CI to flag a committed snapshot that has fallen behind the catalog.)
 
 ## The rules
 
@@ -41,11 +42,13 @@ convenient; nothing breaks if you don't.
    not for getting past the message.
 3. **Write from a current copy.** Each registry entry has a revision
    (`lqcd.catalog.revision`, a time and the writer's account) that changes
-   whenever the entry changes. Your snapshot records the revision it was
-   synced at (`[catalog] revision`). If someone else changed the entry since,
-   `declare_records.py` and `update_ensemble.py` refuse and tell you to sync,
-   rebuild and re-run. This is what stops two groups from silently
-   overwriting each other.
+   whenever the entry changes, and the records you build carry the revision
+   they were built from. If someone else changed the entry between your
+   build and your declare, `declare_records.py` refuses and tells you to
+   rebuild (which picks up their change) and declare again.
+   `update_ensemble.py` and `add_stream.py` always start from the catalog's
+   current state. This is what stops two groups from silently overwriting
+   each other.
 4. **Streams are separate keys.** Each stream lives in its own keys
    (`lqcd.streams.<label>.dir`, `.parent_stream`, `.parent_trajectory`,
    `.registered_by`, `.registered_at`), so two people adding different
@@ -56,11 +59,10 @@ convenient; nothing breaks if you don't.
    `lqcd.catalog.schema_version` is newer than your checkout knows is
    refused; `git pull` first.
 6. **Snapshots are never merged by hand.** If git reports a conflict in
-   `ensembles/` or `derived_datasets/`, run `python3 scripts/sync_registry.py`
-   and commit the result: the catalog wins. The output is deterministic, so
-   two people syncing the same catalog state produce identical files.
-   `sync_registry.py --check` exits 1 when a snapshot is stale (suitable for
-   CI).
+   `ensembles/` or `derived_datasets/`, take either side: the next script
+   that touches that ensemble rewrites it from the catalog, which always
+   wins. Snapshots are generated deterministically, so two people with the
+   same catalog state have identical files and rarely conflict at all.
 
 ## Naming
 

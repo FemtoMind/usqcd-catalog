@@ -60,8 +60,10 @@ convention hardens. Comments as GitHub issues are easiest.
 11. **Derived artifacts.** Propagators carry
     `lqcd.parent.kind/ensemble/stream/trajectory` (+ `sha256` once we have
     checksums) pointing at the gauge config, and `lqcd.prop.*` (source type,
-    smearing, flavors, masses, solver, sparsening); correlators will carry
-    `lqcd.corr.*` (interpolator set, momenta, time sources). Sparse
+    smearing, flavors, masses, solver, sparsening). Correlators and other
+    measurement-level data are out of scope (small, highly customised files
+    with complex permissions, better catalogued elsewhere); this catalog
+    covers ensembles and propagator building blocks. Sparse
     propagators are split into timeslice-to-all and all-to-all kinds and
     datasets (`docs/schema.md`). Suggestions welcome.
 

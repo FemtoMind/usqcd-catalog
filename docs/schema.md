@@ -60,7 +60,7 @@ actions (where xi and nu enter) or non-Wilson actions.
 | `lqcd.n_config_archives` | present when configs are stored as multi-config tar archives |
 | `lqcd.stream_summary` | list of strings `"<stream>: N configs, traj lo-hi"` |
 | `lqcd.catalog.schema_version` | `2` (registry fields present) |
-| `lqcd.catalog.source` | the full description as JSON (physics, observables, file rules, provenance) minus the streams, from which `sync_registry.py` regenerates `ensembles/<name>.toml` |
+| `lqcd.catalog.source` | the full description as JSON (physics, observables, file rules, provenance) minus the streams, from which the scripts regenerate the snapshot `ensembles/<name>.toml` |
 | `lqcd.catalog.revision` | `"<UTC time>/<account>"`, new whenever the registry part of the record changes; writers refuse a local copy synced at an older revision |
 | `lqcd.catalog.inherits_streams` | `true` on a derived dataset that takes its streams from the parent |
 | `lqcd.catalog.updated_at` | ISO timestamp of the last `build_records.py` |
@@ -194,7 +194,12 @@ does) for any record whose location is on an FDP collection; `--from-json`
 takes hashes computed elsewhere. Either way `lqcd.checksum.source` records
 where the value came from.
 
-## Derived datasets (propagators, correlators)
+## Derived datasets (propagator building blocks)
+
+Derived datasets are the propagator building blocks computed on an
+ensemble's configurations. Correlators and other measurement-level data are
+out of scope for this catalog.
+
 
 A derived product is its own dataset, `lqcd:<ensemble>_<product>` (e.g.
 `lqcd:cl3_48_96_b6p5_m0p1788_sparseprops`), described by its own file
@@ -251,8 +256,7 @@ tests) get a dataset of their own so production queries never see them.
 `point-source`, `original-run`, `multi-timeslice`, `fine-solves`, ...),
 `generation` (a label telling coexisting productions of the same kind
 apart, e.g. `2021-tacc` / `2024-2025` / `2020-hdf5` on cl3_32_48, where
-the three differ in smearing and file format). Correlators will follow the
-same pattern with `lqcd.corr.*`.
+the three differ in smearing and file format).
 
 **What an archive actually holds.** Directory names are nominal: on
 cl21_48_96 the 2025 sets under `sparseprops-t0/` use one random source

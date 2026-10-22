@@ -1,32 +1,53 @@
-# Template for registering a NEW derived dataset (propagators, correlators, ...)
-# computed on a registered ensemble:
+# Template for registering a NEW derived dataset of propagator building
+# blocks computed on a registered ensemble. The example is an all-to-all
+# sparse propagator set (sources on every sparse site of every timeslice),
+# the input for matrix elements, meson fields and multi-hadron contractions:
 #     cp templates/derived_dataset.toml my_props.toml   # edit, then
 #     python3 scripts/register_ensemble.py my_props.toml --dry-run
 #     python3 scripts/register_ensemble.py my_props.toml
-# Comments are kept as provenance. The dataset inherits the parent's physics
+# Comments are kept as provenance: say where the smearing and solver numbers
+# came from (run XML, input file). The dataset inherits the parent's physics
 # and streams; every record points back at the configuration it was computed
-# on through lqcd.parent.*. Worked examples: derived_datasets/*.toml.
+# on through lqcd.parent.*. Worked examples: derived_datasets/*_a2a.toml.
 
 [ensemble]
-name = "cl3_48_96_b6p5_m0p1788_example_props"   # <parent>_<product>; permanent once registered
-parent = "cl3_48_96_b6p5_m0p1788"               # must already be registered
+name = "cl21_48_96_b6p3_m0p2416_m0p2050_example_a2a"   # <parent>_<product>; permanent once registered
+parent = "cl21_48_96_b6p3_m0p2416_m0p2050"             # must already be registered
 kind = "sparse_propagator_set"
-name_style = "path"                             # catalog names "<stream dir>/<path>"
+name_style = "path"                                    # catalog names "<stream dir>/<path>"
 description = """\
-What was computed, with which sources, smearing and solver, and how it is \
-stored (one archive per configuration and source timeslice, ...)."""
+All-to-all sparse light-quark propagators: sources on every site of a 6^3 \
+sparse grid on all 96 timeslices, gauge-invariant Gaussian source smearing \
+of width 7.0 with point and smeared sinks, one htar archive per \
+configuration."""
 
 # Facts about the product, flattened to lqcd.prop.* on every record.
 [derived.prop]
 kind = "sparse_propagator"
-topology = "timeslice-to-all"
+topology = "all-to-all"                 # or "timeslice-to-all"
+sparse_grid = "6^3"
+sparsening_factor = 8
+n_source_timeslices = 96
+flavors = ["light"]
+quark_mass_light = -0.2416
 smearing_kind = "GAUGE_INV_GAUSSIAN"
-smearing_width = 6.0
-smearing_steps = 150
+smearing_width = 7.0
+sink_smearing_widths = [0.0, 7.0]
+smearing_steps = 100
+solver = "QUDA_MULTIGRID_CLOVER_INVERTER"
+solver_rsd_target = 1e-12
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS7.0_S{w_snk}.prop"
 
 [[files]]
-pattern = '^sparseprops-t(?P<tsrc>\d+)/(?P<trajectory>\d+)\.tar$'
-kind = "sparse_propagator_timeslice_to_all"
+pattern = '^frontier/propagators/(?P<trajectory>\d+)\.tar$'
+kind = "sparse_propagator_all_to_all"
 format = "application/x-tar"
-parent_name = "cl3_48_96_b6p5_m0p1788_cfg_{trajectory}.lime"
-description = "Archive of sparse propagators for one configuration and source timeslice."
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar archive of the all-to-all sparse propagators for one configuration."
+
+[[files]]
+pattern = '^frontier/propagators/(?P<trajectory>\d+)\.tar\.idx$'
+kind = "archive_index"
+format = "application/octet-stream"
+parent_name = "{stream_dir}_cfg_{trajectory}.lime"
+description = "htar index for the propagator archive of the same name."

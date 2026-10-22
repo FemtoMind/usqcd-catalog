@@ -137,9 +137,12 @@ description = "Gauge configuration in SciDAC/ILDG LIME format."
   python3 scripts/build_records.py ensembles/<name>.toml --archive-index work/<name>/members.json
   ```
 
-## Derived datasets (propagators, correlators)
+## Derived datasets (propagator building blocks)
 
-A product computed on an ensemble gets its own registry entry and dataset,
+Derived datasets are the propagator building blocks computed on an
+ensemble's configurations, timeslice-to-all and all-to-all sparse
+propagators so far; correlators and other measurement-level data are out of
+scope. A product gets its own registry entry and dataset,
 snapshot in `derived_datasets/<ens>_<product>.toml` (separate from
 `ensembles/`, which holds only gauge ensembles). Start from
 `templates/derived_dataset.toml` and register it with `register_ensemble.py`
@@ -247,21 +250,24 @@ untouched, and it refreshes the dataset record's counts. A stream with a
 different storage layout also needs its own `[[files]]` rule, which is a
 change to the description (section 5).
 
-## 5. Changing metadata later
+## 5. Adding physics information later
+
+No file editing; the script starts from the catalog's current state:
 
 ```
-python3 scripts/sync_registry.py --ensemble <name>             # start from the catalog's current state
-$EDITOR ensembles/<name>.toml                                   # physics, observables, text, file rules
-python3 scripts/update_ensemble.py ensembles/<name>.toml [--dry-run]
+python3 scripts/update_ensemble.py --ensemble <name> --set lqcd.hmc.n_steps=16 --set observables.mpi.ncfgs=800
+python3 scripts/update_ensemble.py --ensemble <name> --merge new_observables.toml   # a TOML fragment, e.g. [observables.w0]
 ```
 
-`update_ensemble.py` refuses if someone changed the entry since your sync,
-refuses stream additions or removals (use `add_stream.py`; labels are
-permanent), and says when the change also affects file records (ensemble
-physics is copied onto every file); then rebuild and run
-`declare_records.py work/<name>/records.json --update-existing`, which
-merges the new values onto every existing record (server-stamped fields are
-untouched).
+`--set` paths use the description's table names (`lqcd.*`,
+`observables.*`, `derived.*`, `ensemble.description`, `files` via
+`--merge`); values are read as TOML. It refuses changes to streams (use
+`add_stream.py`) and to the name, and an ensemble registered by someone else
+unless `--force`; `--dry-run` shows the change. When the change also affects
+file records (ensemble physics is copied onto every file) it says so: rebuild
+and run `declare_records.py work/<name>/records.json --update-existing`,
+which merges the new values onto every existing record (server-stamped
+fields are untouched).
 
 ## Catalog file names
 

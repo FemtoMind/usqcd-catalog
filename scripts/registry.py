@@ -267,9 +267,9 @@ def check_stream_owner(md: dict, labels: list[str], user: str, force: bool, what
 def check_revision(md: dict, local_revision: str | None, force: bool, what: str, name: str) -> None:
     remote = md.get("lqcd.catalog.revision")
     if remote and local_revision != remote and not force:
-        sys.exit(f"{what} changed in the catalog since your local copy was synced\n"
+        sys.exit(f"{what} changed in the catalog after your records were built (someone else wrote to it)\n"
                  f"  catalog revision: {remote}\n  your revision:    {local_revision or '(none)'}\n"
-                 f"Run `python3 scripts/sync_registry.py --ensemble {name}`, rebuild, and try again "
+                 f"Re-run build_records.py (it picks up the current registry entry) and declare again "
                  "(or --force to overwrite).")
 
 

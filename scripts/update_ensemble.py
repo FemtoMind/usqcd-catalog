@@ -1,28 +1,36 @@
 #!/usr/bin/env python3
 """
-Push a change to a registered ensemble's description (physics, observables,
-description text, provenance, file rules) to the catalog.
+Add or change physics information on a registered ensemble (or derived
+dataset): parameters, observables, description text, file rules.
 
-    python3 scripts/sync_registry.py --ensemble <name>      # start from the current catalog state
-    $EDITOR ensembles/<name>.toml                            # change what needs changing
-    python3 scripts/update_ensemble.py ensembles/<name>.toml [--dry-run]
+    update_ensemble.py --ensemble cl3_48_96_b6p5_m0p1788 --set lqcd.hmc.n_steps=16
+    update_ensemble.py --ensemble cl3_48_96_b6p5_m0p1788 \
+        --set observables.mpi.value=0.3042 --set observables.mpi.stat=0.0001
+    update_ensemble.py --ensemble cl3_48_96_b6p5_m0p1788 --merge new_observables.toml
+    ... --dry-run                      # show the change, write nothing
 
-Refuses, before writing anything:
-  * if the catalog changed since your snapshot was synced (someone else wrote
-    to it): sync, re-apply your edit, re-run;
-  * changes under [streams] that add or remove a stream (use add_stream.py;
-    stream labels are permanent) or rewrite who registered it; moving a
-    stream's directory needs --force;
-  * an ensemble registered by someone else, unless --force.
-Counts and stream summaries are left as the last declare wrote them. Fields
-deleted from the TOML are not deleted from the catalog (MetaCat merges).
-If ensemble physics that file records also carry changed, the script says so:
-rebuild and run declare_records.py --update-existing to propagate it.
+--set KEY=VALUE   KEY is a dotted path into the description, the same names
+                  as the TOML tables: lqcd.*, observables.*, derived.*,
+                  ensemble.description, ... VALUE is read as a TOML value
+                  (16, 0.3042, true, [1, 2], "text"); anything that is not
+                  valid TOML is taken as a plain string.
+--merge FILE      a TOML fragment merged table by table into the description,
+                  e.g. a whole [observables.w0] table, or [[files]] (arrays
+                  replace the existing array).
+
+The script starts from the catalog's current state (no local file to keep
+in sync), so two people updating different fields do not overwrite each
+other. Refused: changes under [streams] (use add_stream.py; labels are
+permanent), the [ensemble] name, and an ensemble registered by someone else
+unless --force. Afterwards the local snapshot is regenerated. If the change
+touches physics that file records also carry, the script says so: rebuild
+and declare with --update-existing to propagate it to the files.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import sys
 import tomllib
 from pathlib import Path
@@ -31,74 +39,114 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_records import DATASET_ONLY_PREFIXES, ensemble_metadata  # noqa: E402
 from catalog_common import load_catalog_config, load_ensemble, metacat_client  # noqa: E402
 from registry import (  # noqa: E402
-    check_owner, check_revision, check_schema, new_revision, streams_from_metadata,
+    REGISTRY_TABLE, check_owner, check_schema, description_from_metadata, new_revision, snapshot_path,
+    snapshot_text,
 )
 from sync_registry import sync_one  # noqa: E402
 
 COUNT_PREFIXES = ("lqcd.n_", "lqcd.stream_summary", "lqcd.stream_labels")
 
 
+def parse_value(text: str):
+    try:
+        return tomllib.loads(f"v = {text}")["v"]
+    except tomllib.TOMLDecodeError:
+        return text
+
+
+def set_path(d: dict, path: str, value) -> None:
+    keys = path.split(".")
+    for k in keys[:-1]:
+        if not isinstance(d.setdefault(k, {}), dict):
+            sys.exit(f"--set {path}: {k!r} is a value, not a table")
+        d = d[k]
+    d[keys[-1]] = value
+
+
+def merge(dst: dict, src: dict) -> None:
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            merge(dst[k], v)
+        else:
+            dst[k] = v
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("description", help="the edited snapshot, ensembles/<name>.toml or derived_datasets/<name>.toml")
-    ap.add_argument("--force", action="store_true", help="another group's ensemble, or a stream directory move")
+    ap.add_argument("--ensemble", required=True, help="registered ensemble or derived dataset name")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="repeatable")
+    ap.add_argument("--merge", action="append", default=[], metavar="FILE.toml", help="repeatable")
+    ap.add_argument("--force", action="store_true", help="an ensemble registered by someone else")
     ap.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     ap.add_argument("--config", help="site config (default: catalog.toml in repo root)")
     args = ap.parse_args()
+    if not args.set and not args.merge:
+        ap.error("nothing to change: give --set KEY=VALUE and/or --merge FILE.toml")
 
     cfg = load_catalog_config(args.config)
     ns = cfg["metacat"]["namespace"]
-    client = metacat_client(cfg, need_auth=True)
-    user = client.auth_info()[0]
-    raw = tomllib.loads(Path(args.description).read_text())
-    name = (raw.get("ensemble") or {}).get("name")
-    if not name or Path(args.description).stem != name:
-        sys.exit(f"[ensemble] name {name!r} must match the file name; ensemble names cannot be changed.")
+    client = metacat_client(cfg, need_auth=not args.dry_run)
+    user = client.auth_info()[0] if not args.dry_run else "(you)"
+    name = args.ensemble
     did = f"{ns}:{name}"
     ds = client.get_dataset(did)
     if ds is None:
-        sys.exit(f"{did} is not registered; new ensembles go through register_ensemble.py.")
+        sys.exit(f"{did} is not registered (see retrieve_records.py --summary); "
+                 "new ensembles go through register_ensemble.py.")
     remote = ds.get("metadata") or {}
     check_schema(remote, did)
-    check_revision(remote, (raw.get("catalog") or {}).get("revision"), args.force, did, name)
-    check_owner(ds, user, args.force, did)
+    if not args.dry_run:
+        check_owner(ds, user, args.force, did)
+    if "lqcd.catalog.source" not in remote:
+        sys.exit(f"{did} predates the catalog registry; run scripts/migrations/registry_v2.py first.")
 
-    # Streams: only parent/note edits here; additions via add_stream.py.
-    if not remote.get("lqcd.catalog.inherits_streams"):
-        have, want = streams_from_metadata(remote), raw.get("streams") or {}
-        if set(want) - set(have):
-            sys.exit(f"new streams {sorted(set(want) - set(have))}: register them with add_stream.py.")
-        if set(have) - set(want):
-            sys.exit(f"streams {sorted(set(have) - set(want))} are missing from your file; stream labels are "
-                     "permanent and cannot be removed.")
-        for label, st in want.items():
-            for f in ("registered_by", "registered_at"):
-                if st.get(f) != have[label].get(f):
-                    sys.exit(f"stream {label!r}: {f} cannot be edited.")
-            if st.get("dir") != have[label].get("dir") and not args.force:
-                sys.exit(f"stream {label!r}: directory change {have[label].get('dir')!r} -> {st.get('dir')!r} "
-                         "means the data moved; re-run with --force if so (copies elsewhere are replicas, "
-                         "not a new directory).")
-
-    ens = load_ensemble(args.description)
-    new = ensemble_metadata(ens, cfg, {}, raw=raw)
-    new = {k: v for k, v in new.items() if not k.startswith(COUNT_PREFIXES)}
-    changed = {k: v for k, v in new.items() if remote.get(k) != v and k != "lqcd.catalog.updated_at"}
-    if not changed:
+    before = description_from_metadata(remote)
+    raw = copy.deepcopy(before)
+    for item in args.set:
+        if "=" not in item:
+            sys.exit(f"--set {item!r}: expected KEY=VALUE")
+        key, val = item.split("=", 1)
+        key = key.strip()
+        if key.split(".")[0] in ("streams", REGISTRY_TABLE) or key == "ensemble.name":
+            sys.exit(f"--set {key}: streams are added with add_stream.py and names are permanent")
+        set_path(raw, key, parse_value(val.strip()))
+    for f in args.merge:
+        frag = tomllib.loads(Path(f).read_text())
+        if "streams" in frag or REGISTRY_TABLE in frag or "name" in frag.get("ensemble", {}):
+            sys.exit(f"{f}: may not contain [streams], [{REGISTRY_TABLE}] or [ensemble] name")
+        merge(raw, frag)
+    if raw == before:
         print(f"{did}: nothing to change")
         return 0
+
+    # Build the dataset metadata from the updated description, through the
+    # same code path as build_records (via a temporary snapshot file).
+    path = snapshot_path(name, raw)
+    tmp = path.with_suffix(".update.toml")
+    tmp.write_text(snapshot_text(name, ns, raw))
+    try:
+        new = ensemble_metadata(load_ensemble(tmp), cfg, {}, raw=tomllib.loads(tmp.read_text()))
+    finally:
+        tmp.unlink()
+    new = {k: v for k, v in new.items() if not k.startswith(COUNT_PREFIXES)}
+    changed = {k: v for k, v in new.items() if remote.get(k) != v and k != "lqcd.catalog.updated_at"}
     file_level = sorted(k for k in changed if k.startswith("lqcd.") and not k.startswith(DATASET_ONLY_PREFIXES))
-    print(f"{did}: {len(changed)} field(s) change: " + ", ".join(sorted(changed)[:12])
-          + (" ..." if len(changed) > 12 else ""))
+    shown = sorted(k for k in changed if k != "lqcd.catalog.source")
+    print(f"{did}: {len(shown)} catalog field(s) change: " + (", ".join(shown[:12]) or "(description only)")
+          + (" ..." if len(shown) > 12 else ""))
     if args.dry_run:
+        if file_level:
+            print(f"(file records also carry {', '.join(file_level[:6])}; after the update, rebuild and "
+                  "declare with --update-existing to propagate)")
         return 0
     new["lqcd.catalog.revision"] = new_revision(user)
     client.update_dataset(did, metadata=new, mode="update")
     sync_one(client, ns, name, quiet=True)
-    print(f"updated {did}; snapshot regenerated from the catalog.")
+    print(f"updated {did}; local snapshot regenerated.")
     if file_level:
+        sub = path.parent.name
         print(f"File records also carry {', '.join(file_level[:6])}{' ...' if len(file_level) > 6 else ''}; "
-              f"propagate with: build_records.py {args.description} && "
+              f"propagate with build_records.py {sub}/{name}.toml, then "
               f"declare_records.py work/{name}/records.json --update-existing")
     return 0
 
