@@ -18,8 +18,10 @@ takes regexes as literal strings (`'^cfgs/.+_cfg_(?P<trajectory>\d+)\.lime$'`)
 without doubling every backslash. Nothing else depends on the syntax: the
 file is a nested dictionary, and `ensembles/<name>.json` with the same keys
 is accepted everywhere a `.toml` is (`[[files]]` becomes a `"files"` list,
-`[lqcd.action]` becomes `"lqcd": {"action": {...}}`). Everything the scripts
-*generate* (inventory, records, dumps) is JSON.
+`[lqcd.action]` becomes `"lqcd": {"action": {...}}`), and so is `.yaml` if
+PyYAML is installed. `docs/examples/` holds the cl3_48_96 description in
+all three forms for comparison. Everything the scripts *generate*
+(inventory, records, dumps) is JSON.
 
 ### `[ensemble]` (required: `name`)
 
@@ -128,8 +130,9 @@ description = "Gauge configuration in SciDAC/ILDG LIME format."
 
 ## Derived datasets (propagators, correlators)
 
-A product computed on an ensemble gets its own TOML and dataset,
-`ensembles/<ens>_<product>.toml`, with
+A product computed on an ensemble gets its own description and dataset,
+`derived_datasets/<ens>_<product>.toml` (a separate registry from
+`ensembles/`, which holds only gauge ensembles), with
 
 ```toml
 [ensemble]

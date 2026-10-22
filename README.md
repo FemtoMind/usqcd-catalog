@@ -207,8 +207,10 @@ python3 scripts/retrieve_records.py <name> --diff work/<name>/records.json  # ro
 
 Groups without write access stop after the build and hand `records.json` to
 someone who has it (see Authentication). Derived products (propagators,
-correlators) get their own TOML with `parent = "<ensemble>"`; see
-`docs/adding_an_ensemble.md`.
+correlators) get their own description in `derived_datasets/` with
+`parent = "<ensemble>"`; see `docs/adding_an_ensemble.md`. Descriptions are
+TOML by default; the same nested structure as `.json` or `.yaml` is accepted
+too (`docs/examples/` shows one ensemble in all three).
 
 ## Layout
 
@@ -216,7 +218,9 @@ correlators) get their own TOML with `parent = "<ensemble>"`; see
 catalog.toml            site config: catalog, namespace, storage collections, optional interpreter
 pyproject.toml          dependencies for `pip install -e .` (metacat-client; extras [transfer], [reduce])
 requirements.txt        the same list for `pip install -r`
-ensembles/<name>.toml   one per ensemble (physics, streams, file rules)
+ensembles/<name>.toml   one per gauge ensemble (physics, streams, file rules)
+derived_datasets/       one per derived product (sparse propagator sets, ...), each naming its parent ensemble
+docs/examples/          the same description as .toml, .json and .yaml (all three are accepted)
 scripts/                the four catalog steps + catalog_common.py (+ attach_checksums.py,
                         lime_hmc_params.py to read HMC parameters out of a LIME header,
                         sprop_members.py to read what propagator archives hold from their htar

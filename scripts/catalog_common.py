@@ -32,12 +32,21 @@ DEFAULT_CATALOG_CONFIG = REPO_ROOT / "catalog.toml"
 
 # ----------------------------------------------------------------- config I/O
 def load_toml(path: str | os.PathLike) -> dict:
-    """Load a TOML file, or a JSON file with the same structure (.json): the
-    ensemble descriptions are plain nested tables, so either syntax works."""
-    if str(path).endswith(".json"):
-        with open(path) as f:
+    """Load a TOML file, or a JSON / YAML file with the same structure: the
+    ensemble descriptions are plain nested tables, so any of the three works
+    (YAML needs PyYAML, which is not a declared dependency)."""
+    p = str(path)
+    if p.endswith(".json"):
+        with open(p) as f:
             return json.load(f)
-    with open(path, "rb") as f:
+    if p.endswith((".yaml", ".yml")):
+        try:
+            import yaml
+        except ImportError:
+            sys.exit(f"{p}: reading YAML descriptions needs `pip install pyyaml`")
+        with open(p) as f:
+            return yaml.safe_load(f)
+    with open(p, "rb") as f:
         return tomllib.load(f)
 
 
@@ -80,11 +89,13 @@ def load_ensemble(path: str | os.PathLike) -> dict:
     # otherwise, its streams, so its records are self-describing and point back.
     parent = ens["ensemble"].get("parent")
     if parent:
-        candidates = [Path(path).resolve().parent / f"{parent}{ext}" for ext in (".toml", ".json")]
-        candidates += [REPO_ROOT / "ensembles" / f"{parent}{ext}" for ext in (".toml", ".json")]
+        # Derived descriptions live in derived_datasets/, their parents in ensembles/.
+        exts = (".toml", ".json", ".yaml")
+        candidates = [REPO_ROOT / "ensembles" / f"{parent}{ext}" for ext in exts]
+        candidates += [Path(path).resolve().parent / f"{parent}{ext}" for ext in exts]
         ppath = next((p for p in candidates if p.exists()), None)
         if ppath is None:
-            sys.exit(f"{path}: parent ensemble description not found: {parent}.toml (or .json)")
+            sys.exit(f"{path}: parent ensemble description not found: ensembles/{parent}.toml (or .json/.yaml)")
         pens = load_toml(ppath)
         ens["_parent"] = pens
         ens.setdefault("lqcd", pens.get("lqcd", {}))
