@@ -5,8 +5,7 @@ our convention; this document and `build_records.py` are its only enforcement.
 Field names are flat dotted paths so every value is usable in MQL
 (`lqcd.mass.light = -0.1788`, `lqcd.stream in ("a","b")`). The schema is
 this set of fields; the hand-written description in `ensembles/<name>.toml`
-(or the same nested structure as JSON or YAML, see adding_an_ensemble.md) is
-only the input format a group writes the values down in.
+is only the input format a group writes the values down in.
 
 ## What is required, what is optional
 

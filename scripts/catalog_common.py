@@ -32,21 +32,9 @@ DEFAULT_CATALOG_CONFIG = REPO_ROOT / "catalog.toml"
 
 # ----------------------------------------------------------------- config I/O
 def load_toml(path: str | os.PathLike) -> dict:
-    """Load a TOML file, or a JSON / YAML file with the same structure: the
-    ensemble descriptions are plain nested tables, so any of the three works
-    (YAML needs PyYAML, which is not a declared dependency)."""
-    p = str(path)
-    if p.endswith(".json"):
-        with open(p) as f:
-            return json.load(f)
-    if p.endswith((".yaml", ".yml")):
-        try:
-            import yaml
-        except ImportError:
-            sys.exit(f"{p}: reading YAML descriptions needs `pip install pyyaml`")
-        with open(p) as f:
-            return yaml.safe_load(f)
-    with open(p, "rb") as f:
+    """Load a TOML file. Ensemble and derived-dataset descriptions are TOML
+    only, so there is one syntax to learn and one to validate."""
+    with open(path, "rb") as f:
         return tomllib.load(f)
 
 
@@ -90,12 +78,10 @@ def load_ensemble(path: str | os.PathLike) -> dict:
     parent = ens["ensemble"].get("parent")
     if parent:
         # Derived descriptions live in derived_datasets/, their parents in ensembles/.
-        exts = (".toml", ".json", ".yaml")
-        candidates = [REPO_ROOT / "ensembles" / f"{parent}{ext}" for ext in exts]
-        candidates += [Path(path).resolve().parent / f"{parent}{ext}" for ext in exts]
+        candidates = [REPO_ROOT / "ensembles" / f"{parent}.toml", Path(path).resolve().parent / f"{parent}.toml"]
         ppath = next((p for p in candidates if p.exists()), None)
         if ppath is None:
-            sys.exit(f"{path}: parent ensemble description not found: ensembles/{parent}.toml (or .json/.yaml)")
+            sys.exit(f"{path}: parent ensemble description not found: ensembles/{parent}.toml")
         pens = load_toml(ppath)
         ens["_parent"] = pens
         ens.setdefault("lqcd", pens.get("lqcd", {}))
