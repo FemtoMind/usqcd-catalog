@@ -37,7 +37,10 @@ trajectory."""
 [derived.prop]
 kind = "sparse_propagator"
 topology = "timeslice-to-all"
-file_format = "NPLQCD sprop binary, one file per source position"
+file_format = """\
+NPLQCD sprop binary: raw complex128, no header, (Nc, Ns, Lt, Vs, Nc, Ns) \
+with the source color/spin outermost, 75497472 bytes (8^3 sparse sink sites \
+x 64); one file per source position (verified by reading, 2026-10-25)"""
 sparse_grid = "8^3"
 sparsening_factor = 6
 n_sources_per_timeslice = 512
@@ -73,5 +76,5 @@ source timeslice 0: 512 sprop files, one per source position on the 8^3 \
 grid."""
 
 [catalog]
-revision = "2026-10-22T16:24:59Z/mwagman"
+revision = "2026-10-28T12:56:47Z/mwagman"
 schema_version = 2

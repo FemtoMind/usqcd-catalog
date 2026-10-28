@@ -37,7 +37,11 @@ is one catalog record with lqcd.parent.* naming its configuration."""
 [derived.prop]
 kind = "sparse_propagator"
 topology = "timeslice-to-all"
-file_format = "NPLQCD sprop binary, one file per source position"
+file_format = """\
+SciDAC/LIME (Chroma QIO): one scidac-binary-data record, big-endian \
+complex128, the 6^3 x 60 sparse sink lattice, typesize 2304 (4x4 spin x 3x3 \
+color), plus private/record XML (~19 kB of headers); one file per source \
+position (verified by reading, 2026-10-27)"""
 sparse_grid = "6^3"
 sparsening_factor = 5
 n_sources_per_timeslice = 216
@@ -81,5 +85,5 @@ Tarball of the Chroma input/output XML for every propagator solve on this \
 configuration and source timeslice."""
 
 [catalog]
-revision = "2026-10-22T16:24:47Z/mwagman"
+revision = "2026-10-28T12:56:41Z/mwagman"
 schema_version = 2

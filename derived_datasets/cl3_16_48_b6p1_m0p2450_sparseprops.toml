@@ -40,7 +40,10 @@ stream."""
 [derived.prop]
 kind = "sparse_propagator"
 topology = "timeslice-to-all"
-file_format = "NPLQCD sprop binary, one file per source position"
+file_format = """\
+NPLQCD sprop binary: raw complex128, no header, (Nc, Ns, Lt, Vs, Nc, Ns) \
+with the source color/spin outermost, 7077888 bytes (4^3 sparse sink sites x \
+48); one file per source position (verified by reading, 2026-10-25)"""
 sparse_grid = "4^3"
 sparsening_factor = 4
 n_sources_per_timeslice = 64
@@ -79,5 +82,5 @@ format = "application/octet-stream"
 description = "htar index for the propagator archive of the same name."
 
 [catalog]
-revision = "2026-10-22T16:24:42Z/mwagman"
+revision = "2026-10-28T12:56:45Z/mwagman"
 schema_version = 2

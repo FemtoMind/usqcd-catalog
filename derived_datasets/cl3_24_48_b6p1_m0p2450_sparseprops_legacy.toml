@@ -25,24 +25,31 @@ display_name = "cl3 24^3x48 beta=6.1 sparse propagators (timeslice-to-all, legac
 generated_by = "NPLQCD (W. Detmold, 2021)"
 code = "Chroma + QUDA"
 description = """\
-Timeslice-to-all sparsened quark propagators from 2021 on the original \
-(pre-2024) stream of the cl3_24_48_b6p1_m0p2450 ensemble (Nf=3 stout-clover, \
-24^3 x 48, beta = 6.1, m = -0.2450): one tar archive per configuration at \
-source timeslice 1, holding the propagators from all 216 positions of a 6^3 \
-sparse grid (sparsening factor 4) for all four combinations of width-2.1 and \
-width-4.7 gauge-invariant Gaussian source/sink smearing. The configurations \
-of this stream are not archived on NERSC HPSS. Each archive is one catalog \
-record with lqcd.parent.* naming the configuration by stream and trajectory."""
+Timeslice-to-all sparsened quark propagators on the original (pre-2024) \
+stream of the cl3_24_48_b6p1_m0p2450 ensemble (Nf=3 stout-clover, 24^3 x 48, \
+beta = 6.1, m = -0.2450), from the 2020 long variational NN study: one tar \
+archive per configuration holding, at ONE source timeslice chosen per \
+configuration (random; encoded as t<T> in the member names, e.g. trajectory \
+1000 at t=1, 1010 at t=30, 1020 at t=0), the propagators from all 216 \
+positions of a 6^3 sparse grid (sparsening factor 4) for all four \
+combinations of width-2.1 and width-4.7 gauge-invariant Gaussian source/sink \
+smearing. Files are SciDAC/LIME (Chroma QIO). The configurations of this \
+stream are not archived on NERSC HPSS. Each archive is one catalog record \
+with lqcd.parent.* naming the configuration by stream and trajectory."""
 
 [derived.prop]
 kind = "sparse_propagator"
 topology = "timeslice-to-all"
 generation = "2021"
-file_format = "NPLQCD sprop binary, one file per source position and smearing combination"
+file_format = """\
+SciDAC/LIME (Chroma QIO): one scidac-binary-data record, big-endian \
+complex128, the 6^3 x 48 sparse sink lattice, typesize 2304 (4x4 spin x 3x3 \
+color), plus private/record XML (~17.6 kB of headers); one file per source \
+position and smearing combination"""
 sparse_grid = "6^3"
 sparsening_factor = 4
 n_sources_per_timeslice = 216
-source_timeslices = [1]
+source_timeslices = "one per configuration, random, encoded in the member names (t<T>)"
 source_type = "SHELL_SOURCE"
 sink_type = "SHELL_SINK"
 smearing_kind = "GAUGE_INV_GAUSSIAN"
@@ -51,7 +58,9 @@ smearing_combinations = ["uS2.1_S2.1", "uS2.1_S4.7", "uS4.7_S2.1", "uS4.7_S4.7"]
 smearing_steps = "20 for width 2.1; unrecorded for width 4.7"
 members_per_archive = 864
 quark_mass = -0.245
-member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t1_uS{w_src}_S{w_snk}.prop"
+member_name_template = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS{w_src}_S{w_snk}.prop"
+source_timeslice_examples = "traj 1000: t1, 1010: t30, 1020: t0, 1030: t14, 1040: t9, 1050: t46 (read 2026-10-27)"
+used_by = "2020 long variational NN study; M_Delta reference for this ensemble (uS2.1_S2.1, 2026)"
 
 [streams.legacy]
 dir = "cl3_24_48_b6p1_m0p2450"
@@ -62,12 +71,12 @@ registered_at = "2026-10-19T19:20:00Z"
 pattern = '^sparseprops/(?P<trajectory>\d+)\.tar$'
 kind = "sparse_propagator_timeslice_to_all"
 format = "application/x-tar"
-meta = { "lqcd.prop.tsrc" = 1 }
 description = """\
 Tar archive of timeslice-to-all sparse propagators for one configuration of \
-the legacy stream at source timeslice 1: 216 source positions times four \
-smearing combinations."""
+the legacy stream at one source timeslice (random per configuration, encoded \
+as t<T> in the member names): 216 source positions times four smearing \
+combinations, SciDAC/LIME files."""
 
 [catalog]
-revision = "2026-10-22T16:24:45Z/mwagman"
+revision = "2026-10-28T12:56:03Z/mwagman"
 schema_version = 2
