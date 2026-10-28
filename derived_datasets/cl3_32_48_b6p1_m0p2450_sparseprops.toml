@@ -63,11 +63,12 @@ pattern = '^sparseprops/(?P<trajectory>\d+)\.tar$'
 kind = "sparse_propagator_timeslice_to_all"
 format = "application/x-tar"
 parent_name = "cl3_32_48_b6p1_m0p2450_cfg_{trajectory}.lime"
-meta = { "lqcd.prop.tsrc" = 1, "lqcd.prop.generation" = "2021-tacc", "lqcd.prop.smearing_widths" = [2.1, 4.7], "lqcd.prop.smearing_combinations" = ["uS2.1_S2.1", "uS2.1_S4.7", "uS4.7_S2.1", "uS4.7_S4.7"], "lqcd.prop.smearing_steps" = "20 for width 2.1; unrecorded for width 4.7", "lqcd.prop.members_per_archive" = 2048, "lqcd.prop.file_format" = "NPLQCD sprop binary, one file per source position and smearing combination", "lqcd.prop.member_name_template" = "{trajectory}/sprop_x{x}y{y}z{z}t1_uS{w_src}_S{w_snk}.prop" }
+meta = { "lqcd.prop.generation" = "2021-tacc", "lqcd.prop.source_timeslices" = "one per configuration, random, encoded in the member names (t<T>)", "lqcd.prop.smearing_widths" = [2.1, 4.7], "lqcd.prop.smearing_combinations" = ["uS2.1_S2.1", "uS2.1_S4.7", "uS4.7_S2.1", "uS4.7_S4.7"], "lqcd.prop.smearing_steps" = "20 for width 2.1; unrecorded for width 4.7", "lqcd.prop.members_per_archive" = 2048, "lqcd.prop.file_format" = "SciDAC/LIME (Chroma QIO): one scidac-binary-data record, big-endian complex128, the 8^3 x 48 sparse sink lattice, typesize 2304, plus private/record XML (~17.7 kB of headers); one file per source position and smearing combination", "lqcd.prop.member_name_template" = "{trajectory}/sprop_x{x}y{y}z{z}t{tsrc}_uS{w_src}_S{w_snk}.prop" }
 description = """\
 Archive (htar where an .idx exists) of timeslice-to-all sparse propagators \
-for one configuration at source timeslice 1: 512 source positions times four \
-source/sink smearing combinations of widths 2.1 and 4.7."""
+for one configuration at one source timeslice (random per configuration, \
+encoded as t<T> in the member names): 512 source positions times four \
+source/sink smearing combinations of widths 2.1 and 4.7, SciDAC/LIME files."""
 
 [[files]]
 pattern = '^sparseprops/(?P<trajectory>\d+)\.tar\.idx$'
@@ -97,5 +98,5 @@ HDF5 file of timeslice-to-all sparse propagators for one configuration and \
 source timeslice (2020 production)."""
 
 [catalog]
-revision = "2026-10-22T16:24:52Z/mwagman"
+revision = "2026-10-28T13:51:24Z/mwagman"
 schema_version = 2

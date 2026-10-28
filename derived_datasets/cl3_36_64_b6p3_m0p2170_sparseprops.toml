@@ -36,7 +36,12 @@ its configuration."""
 [derived.prop]
 kind = "sparse_propagator"
 topology = "timeslice-to-all"
-file_format = "NPLQCD sprop binary, one file per source position"
+file_format = """\
+SciDAC/LIME (Chroma QIO): one scidac-binary-data record, big-endian \
+complex128, the 6^3 x 64 sparse sink lattice, typesize 2304 (4x4 spin x 3x3 \
+color), plus private/record XML (~18 kB of headers); one file per source \
+position (contracted as LIME 2026-10-28, pion matches the stored \
+correlators)"""
 sparse_grid = "6^3"
 sparsening_factor = 6
 n_sources_per_timeslice = 216
@@ -72,5 +77,5 @@ parent_name = "cl3_36_64_b6p3_m0p2170_cfg_{trajectory}.lime"
 description = "htar index for the propagator archive of the same name."
 
 [catalog]
-revision = "2026-10-22T16:24:57Z/mwagman"
+revision = "2026-10-28T13:51:27Z/mwagman"
 schema_version = 2
